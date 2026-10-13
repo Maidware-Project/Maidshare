@@ -1,7 +1,10 @@
 # MaidShare — send files and links from linux to your android phone
 
 no phone app needed for most of it. backends auto-picked in order
-(kdeconnect → adb → http), override with `--via`. no personal data inside.
+(kdeconnect → adb → http), override with `--via`. every send tells you
+which backend it used — auto order can land on plain-HTTP LAN serving
+when the others are absent, so check the popup before walking away.
+no personal data inside.
 
 ## layout
 
@@ -34,7 +37,8 @@ bash install.sh            # copy + icon + servicemenu, reports backend status
 bash install.sh --check    # dry run
 ```
 
-existing files are backed up to `*.bak-<timestamp>`. then: launcher →
+existing files are backed up to `*.bak-<timestamp>`. install.sh downloads
+nothing — every dependency comes from your distro repos. then: launcher →
 **MaidShare** (pin to task manager for one click).
 
 ## usage
@@ -68,7 +72,10 @@ shows a QR; scan it and upload from the phone browser into
 if the phone can't reach the http/receive URL it's the firewall, not the
 script — it prints the exact open command (firewalld/ufw) instead of
 failing silently. kdeconnect backend needs pair + same network. adb
-backend needs an authorized device (`adb pair` / `adb connect`).
+backend needs an authorized device (`adb pair` / `adb connect`). prefer
+kdeconnect where you can; use the http backend only on networks you
+trust, and stop the session (Ctrl-C) when done — anyone on the LAN with
+the URL can download while it serves.
 
 ## related projects
 

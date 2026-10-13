@@ -7,7 +7,12 @@ set -u
 PKGDIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
 CHECK=0
-[ "${1:-}" = "--check" ] && CHECK=1
+for a in "$@"; do
+  case "$a" in
+    --check) CHECK=1 ;;
+    *) echo "unknown option: $a (see: --check)" >&2; exit 2 ;;
+  esac
+done
 
 say()  { echo "==> $*"; }
 
@@ -20,7 +25,8 @@ copy_one() {
     say "backed up $dest"
   fi
   if [ "$rewrite" = "1" ]; then
-    sed -e "s|/home/visa|$HOME|g" "$src" > "$dest"
+    # escape & (sed replacement metachar) in $HOME
+    sed -e "s|/home/visa|${HOME//&/\\&}|g" "$src" > "$dest"
   else
     cp -a "$src" "$dest"
   fi

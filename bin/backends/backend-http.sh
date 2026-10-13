@@ -15,17 +15,19 @@ backend_send() {
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
   if [ -z "$lan" ]; then sorry "No LAN address found. Are you offline?"; return 1; fi
   dir=$(mktemp -d -t maidshare-XXXXXX) || return 1
+  sub=$(python3 -c "import secrets; print(secrets.token_hex(6))")
+  mkdir -p "$dir/$sub" || { rm -rf "$dir"; return 1; }
   for f in "$@"; do
     case "$f" in
       http://*|https://*) sorry "HTTP backend sends files only, not URLs.\nUse --via kdeconnect for links."; rm -rf "$dir"; return 1 ;;
     esac
     base=$(basename "$f")
-    cp -a "$f" "$dir/$base" || { rm -rf "$dir"; return 1; }
+    cp -a "$f" "$dir/$sub/$base" || { rm -rf "$dir"; return 1; }
     enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$base")
     urls="$urls
-http://$lan:$PORT/$enc"
+http://$lan:$PORT/$sub/$enc"
   done
-  url="http://$lan:$PORT/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$(basename "$1")")"
+  url="http://$lan:$PORT/$sub/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$(basename "$1")")"
   firewall_hint "$PORT" &
   cd "$dir" || return 1
   python3 -m http.server "$PORT" >/dev/null 2>&1 &

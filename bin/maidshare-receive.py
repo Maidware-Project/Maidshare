@@ -49,6 +49,11 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._deny()
 
+    @staticmethod
+    def _clean(name):
+        # strip control chars so hostile filenames can't spoof journal lines
+        return "".join(c for c in name if c.isprintable())
+
     def do_POST(self):  # noqa: N802
         if self.path.rstrip("/") != f"/{TOKEN}/upload":
             self._deny()
@@ -61,31 +66,50 @@ class Handler(BaseHTTPRequestHandler):
             self._deny()
             return
         ctype = self.headers.get("Content-Type", "")
-        body = self.rfile.read(length)
         try:
+            body = self.rfile.read(length)
             msg = BytesParser(policy=HTTP).parsebytes(
                 b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + body)
         except Exception:  # noqa: BLE001 - malformed upload, reject it
             self._deny()
             return
         saved = []
-        for part in msg.iter_parts():
-            if part.get_content_disposition() != "form-data":
-                continue
-            name = os.path.basename(part.get_filename() or "")
-            if not name:
-                continue
-            dest = os.path.join(OUTDIR, name)
-            base, ext = os.path.splitext(dest)
-            n = 1
-            while os.path.exists(dest):
-                n += 1
-                dest = f"{base}-{n}{ext}"
-            with open(dest, "wb") as f:
-                f.write(part.get_payload(decode=True) or b"")
-            saved.append(os.path.basename(dest))
-            print(f"SAVED {os.path.basename(dest)}", flush=True)
+        try:
+            for part in msg.iter_parts():
+                if part.get_content_disposition() != "form-data":
+                    continue
+                name = os.path.basename(part.get_filename() or "")
+                if not name:
+                    continue
+                data = part.get_payload(decode=True) or b""
+                dest = self._store(name, data)
+                if dest:
+                    saved.append(dest)
+                    print(f"SAVED {self._clean(dest)}", flush=True)
+        except Exception:  # noqa: BLE001 - never leak tracebacks for uploads
+            self._deny()
+            return
         self._ok("text/plain", ("saved: " + ", ".join(saved) + "\n").encode())
+
+    @staticmethod
+    def _store(name, data):
+        # atomic create (O_EXCL): concurrent same-name uploads can't clobber
+        base, ext = os.path.splitext(os.path.join(OUTDIR, name))
+        for n in range(1, 1000):
+            dest = base + ext if n == 1 else f"{base}-{n}{ext}"
+            try:
+                fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+            except FileExistsError:
+                continue
+            except OSError:
+                return ""
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(data)
+                return os.path.basename(dest)
+            except OSError:
+                return ""
+        return ""
 
 
 srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
