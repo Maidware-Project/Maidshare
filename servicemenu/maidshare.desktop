@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+MimeType=all/all;
+Actions=MaidShareSend;MaidShareQR;
+X-KDE-Priority=TopLevel
+
+[Desktop Action MaidShareSend]
+Name=Send to phone (MaidShare)
+Icon=kdeconnect
+Exec=maidshare %F
+
+[Desktop Action MaidShareQR]
+Name=Send via QR, no phone setup (MaidShare)
+Icon=kdeconnect
+Exec=maidshare --via http %F
