@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# MaidShare: send files/links from Linux to your Android phone.
+# Backends (auto-picked in order, override with --via):
+#   kdeconnect  paired phone on LAN (files + URLs)      [default]
+#   adb         ADB push to /sdcard/Download (files)
+#   http        throwaway LAN server + QR, zero phone setup (files)
+# Usage: maidshare [--via kdeconnect|adb|http] [--device ID] [--adb TARGET] [FILE|URL]...
+#        maidshare --receive [--time MIN]   (phone -> PC via browser upload)
+set -u
+BINDIR="$(cd "$(dirname "$0")" && pwd)"
+
+VIA=""
+if [ "${1:-}" = "--via" ]; then VIA="${2:-}"; shift 2 || true; fi
+if [ "${1:-}" = "--device" ]; then MAID_DEVICE="${2:-}"; shift 2 || true; export MAID_DEVICE; fi
+if [ "${1:-}" = "--adb" ]; then MAID_ADB="${2:-}"; shift 2 || true; export MAID_ADB; fi
+
+popup() {
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "MaidShare" --passivepopup "$1" 8
+  elif command -v zenity >/dev/null 2>&1; then
+    zenity --notification --text="MaidShare: $1" 2>/dev/null || true
+  else
+    echo "MaidShare: $1"
+  fi
+}
+
+sorry() {
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "MaidShare" --sorry "$1"
+  elif command -v zenity >/dev/null 2>&1; then
+    zenity --error --title="MaidShare" --text="$1" 2>/dev/null || true
+  else
+    echo "MaidShare ERROR: $1" >&2
+  fi
+}
+
+firewall_hint() {
+  # tell the user how to open $1/tcp instead of failing silently later
+  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    firewall-cmd --query-port="$1/tcp" >/dev/null 2>&1 || \
+      echo "MaidShare: phone can't reach TCP $1? run: sudo firewall-cmd --permanent --add-port=$1/tcp && sudo firewall-cmd --reload"
+  elif command -v ufw >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    sudo -n ufw status 2>/dev/null | grep -qw "$1/tcp" || \
+      echo "MaidShare: phone can't reach TCP $1? run: sudo ufw allow $1/tcp"
+  fi
+}
+
+do_receive() {
+  # phone -> PC: browser upload form behind a per-run token URL
+  local mins="${SERVE_MIN:-10}" port="${MAID_HTTP_PORT:-8078}"
+  if [ "${1:-}" = "--time" ]; then mins="${2:-10}"; shift 2 || true; fi
+  local outdir="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}/MaidShare"
+  mkdir -p "$outdir"
+  local token lan url before after
+  token=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+  lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
+  [ -n "$lan" ] || { sorry "No LAN address found. Are you offline?"; return 1; }
+  url="http://$lan:$port/$token"
+  firewall_hint "$port" &
+  if command -v qrencode >/dev/null 2>&1; then
+    qrencode -t ANSIUTF8 "$url" 2>/dev/null || true
+  fi
+  popup "Receive mode: scan/open on phone (valid ${mins} min):\n$url"
+  echo "MaidShare receive at $url -> $outdir (${mins} min, Ctrl-C stops)"
+  before=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
+  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" 2>/dev/null || true
+  after=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
+  if [ "$before" != "$after" ]; then
+    popup "Received files are in $outdir"
+  fi
+}
+
+if [ "${1:-}" = "--receive" ]; then shift; do_receive "$@"; exit $?; fi
+
+pick_file() {
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "MaidShare" --getopenfilename "$HOME" 2>/dev/null
+  elif command -v zenity >/dev/null 2>&1; then
+    zenity --file-selection --title="MaidShare" 2>/dev/null
+  else
+    sorry "Need a file picker (kdialog or zenity) or pass a FILE argument."
+    return 1
+  fi
+}
+
+if [ $# -eq 0 ]; then
+  picked="$(pick_file)" || exit 0
+  [ -z "$picked" ] && exit 0
+  set -- "$picked"
+fi
+
+pick_backend() {
+  # echo first available backend from $2 for $1 (no side effects), else fail
+  local file="$1" cands="$2" b mod
+  for b in $cands; do
+    mod="$BINDIR/backends/backend-$b.sh"
+    [ -f "$mod" ] || continue
+    # shellcheck disable=SC1090
+    . "$mod"
+    if backend_available; then echo "$b"; return 0; fi
+  done
+  return 1
+}
+
+send_one() {
+  # $1 backend, $2 file. Safe in background jobs (subshell-safe).
+  local b="$1" FILE="$2"
+  # shellcheck disable=SC1090
+  . "$BINDIR/backends/backend-$b.sh"
+  backend_send "$FILE"
+}
+
+candidates_for() {
+  # echo candidate backends for one file
+  if [ -n "$VIA" ]; then echo "$VIA"; return; fi
+  case "$1" in
+    http://*|https://*) echo "kdeconnect" ;;
+    *) echo "kdeconnect adb http" ;;
+  esac
+}
+
+FAILED=0
+httpfiles=()
+parjobs=()
+for FILE in "$@"; do
+  case "$FILE" in
+    http://*|https://*) : ;;
+    *) [ -e "$FILE" ] || { sorry "File not found:\n$FILE"; FAILED=1; continue; } ;;
+  esac
+  if ! b=$(pick_backend "$FILE" "$(candidates_for "$FILE")"); then
+    sorry "No usable backend for $(basename "$FILE"). Install KDE Connect, connect ADB, or ensure python3 exists."
+    FAILED=1
+    continue
+  fi
+  if [ "$b" = "http" ]; then
+    httpfiles+=("$FILE")   # fixed port: served together, sequentially
+  else
+    parjobs+=("$b|$FILE")  # independent sends run concurrently
+  fi
+done
+
+if [ "${#httpfiles[@]}" -gt 0 ]; then
+  # shellcheck disable=SC1090
+  . "$BINDIR/backends/backend-http.sh"
+  if backend_send "${httpfiles[@]}"; then :; else FAILED=1; fi
+fi
+
+pids=""
+for item in ${parjobs[@]+"${parjobs[@]}"}; do
+  send_one "${item%%|*}" "${item#*|}" &
+  pids="$pids $!"
+done
+for p in $pids; do wait "$p" || FAILED=1; done
+[ "$FAILED" = "0" ] || exit 1
+exit 0
