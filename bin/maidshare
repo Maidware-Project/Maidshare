@@ -38,7 +38,7 @@ firewall_hint() {
   # tell the user how to open $1/tcp instead of failing silently later
   if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
     firewall-cmd --query-port="$1/tcp" >/dev/null 2>&1 || \
-      echo "MaidShare: phone can't reach TCP $1? run: sudo firewall-cmd --permanent --add-port=$1/tcp && sudo firewall-cmd --reload"
+      echo "MaidShare: phone can't reach TCP $1? run: sudo firewall-cmd --add-port=$1/tcp (runtime only, gone on reboot — add --permanent to keep it)"
   elif command -v ufw >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     sudo -n ufw status 2>/dev/null | grep -qw "$1/tcp" || \
       echo "MaidShare: phone can't reach TCP $1? run: sudo ufw allow $1/tcp"
@@ -52,7 +52,7 @@ do_receive() {
   local outdir="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}/MaidShare"
   mkdir -p "$outdir"
   local token lan url before after
-  token=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+  token=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
   [ -n "$lan" ] || { sorry "No LAN address found. Are you offline?"; return 1; }
   url="http://$lan:$port/$token"
