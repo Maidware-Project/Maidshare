@@ -89,10 +89,8 @@ can download while it's up.
 ## uninstall
 
 ```sh
-rm ~/.local/bin/maidshare; rm -rf ~/.local/bin/backends
-rm ~/.local/bin/maidshare-receive.py
-rm ~/.local/share/applications/maidshare.desktop
-rm ~/.local/share/kio/servicemenus/maidshare.desktop
+bash install.sh --uninstall            # everything out, asks about settings + received files
+bash install.sh --uninstall --purge    # everything out including those, no questions
 ```
 
 ## License
