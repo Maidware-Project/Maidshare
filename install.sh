@@ -2,19 +2,45 @@
 # Installer: copies files (no symlinks), desktop icon with home path fixed.
 # Backends are optional and auto-detected at runtime — install any of:
 #   KDE Connect (kdeconnect-cli) / ADB (android-tools) / python3 + qrencode.
-# Usage: ./install.sh [--check]
+# Usage: ./install.sh [--check] [--uninstall [--purge]]
 set -u
 PKGDIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
-CHECK=0
+CHECK=0; UNINST=0; PURGE=0
 for a in "$@"; do
   case "$a" in
     --check) CHECK=1 ;;
-    *) echo "unknown option: $a (see: --check)" >&2; exit 2 ;;
+    --uninstall) UNINST=1 ;;
+    --purge) PURGE=1 ;;
+    *) echo "unknown option: $a (see: --check --uninstall [--purge])" >&2; exit 2 ;;
   esac
 done
 
 say()  { echo "==> $*"; }
+
+if [ "$UNINST" = "1" ]; then
+  rm -f "$HOME"/.local/bin/maidshare "$HOME"/.local/bin/maidshare-receive.py
+  rm -rf "$HOME"/.local/bin/backends
+  rm -f "$HOME"/.local/share/applications/maidshare.desktop \
+    "$HOME"/.local/share/kio/servicemenus/maidshare.desktop
+  if [ "$PURGE" = "1" ]; then
+    rm -f "$HOME"/.config/kdeconnect-share-target
+    rm -rf "$HOME/Downloads/MaidShare"
+    say "uninstalled, settings and received files removed (--purge)"
+  elif [ -t 0 ]; then
+    printf 'Remove settings and received files too (share target, ~/Downloads/MaidShare)? [y/N]: '
+    read -r _ans
+    case "$_ans" in [Yy]*)
+      rm -f "$HOME"/.config/kdeconnect-share-target
+      rm -rf "$HOME/Downloads/MaidShare"
+      say "uninstalled, settings and received files removed" ;;
+    *) say "uninstalled, settings and received files kept" ;;
+    esac
+  else
+    say "uninstalled (kept: share target, ~/Downloads/MaidShare; rerun with --purge to remove)"
+  fi
+  exit 0
+fi
 
 copy_one() {
   local src="$1" dest="$2" rewrite="${3:-0}"
