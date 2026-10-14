@@ -4,6 +4,12 @@ One maintainer plus friends helping out — keep every change small,
 reviewable, and justified. No drive-by refactors, no new dependencies
 without asking.
 
+People over AI, always: this project is human-built and human-reviewed.
+AI assists, humans decide. Write code, messages, and docs a person can
+follow with no assistant involved — clear names, plain language, no
+cleverness. The goal is users who understand their system, not users
+dependent on one.
+
 Phone↔PC file sharing. Backends auto-picked kdeconnect → adb → http.
 
 ## Layout
