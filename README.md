@@ -99,7 +99,7 @@ MIT — see LICENSE.
 
 ## works with the Maid suite
 
-Stands alone, plays nice: [Maid AU](https://github.com/visadaking) pulls
+Stands alone, plays nice: [Maid AU](https://github.com/Maidware-Project/Maid-AU) pulls
 Maidshare updates (`MAID_SUITE`, deploy with `UPDATE_MAID_DEPLOY=1`),
 and your KDE Connect pairing is shared with Maid BT phone features —
 pair once, both work.
