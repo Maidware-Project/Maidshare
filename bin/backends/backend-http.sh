@@ -11,7 +11,7 @@ backend_available() { command -v python3 >/dev/null 2>&1; }
 
 backend_send() {
   # $@ = files. Served together from one throwaway server (fixed port).
-  local lan dir base url enc server_pid f urls=""
+  local lan dir sub base url enc server_pid f urls="" first_url=""
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
   if [ -z "$lan" ]; then sorry "No LAN address found. Are you offline?"; return 1; fi
   dir=$(mktemp -d -t maidshare-XXXXXX) || return 1
@@ -24,22 +24,25 @@ backend_send() {
     base=$(basename "$f")
     cp -a "$f" "$dir/$sub/$base" || { rm -rf "$dir"; return 1; }
     enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$base")
+    url="http://$lan:$PORT/$sub/$enc"
     urls="$urls
-http://$lan:$PORT/$sub/$enc"
+$url"
+    [ -z "$first_url" ] && first_url="$url"
   done
-  url="http://$lan:$PORT/$sub/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$(basename "$1")")"
   firewall_hint "$PORT" &
-  cd "$dir" || return 1
-  python3 -m http.server "$PORT" >/dev/null 2>&1 &
-  server_pid=$!
-  cd - >/dev/null 2>&1 || true
-  trap 'kill "$server_pid" 2>/dev/null; rm -rf "$dir"' EXIT INT TERM
-  if command -v qrencode >/dev/null 2>&1; then
-    qrencode -t ANSIUTF8 "$url" 2>/dev/null || true
-  fi
-  popup "On your phone open (valid ${SERVE_MIN} min):$urls"
-  echo "MaidShare serving $# file(s) for ${SERVE_MIN} min (Ctrl-C stops early):$urls"
-  sleep $((SERVE_MIN * 60))
-  kill "$server_pid" 2>/dev/null || true
-  rm -rf "$dir"
-}
+
+  # Custom server: no directory listing. Only exact file paths under /sub/ are served.
+  python3 - "$PORT" "$dir" <<'PY' >/dev/null 2>&1 &
+import os, sys
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+
+PORT = int(sys.argv[1])
+ROOT = sys.argv[2]
+
+class NoIndexHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *a, **k):
+        super().__init__(*a, directory=ROOT, **k)
+    def list_directory(self, path):
+        self.send_error(404, "Not found")
+        return None
+    def do_GET(self

@@ -2,6 +2,7 @@
 # MaidShare receive end: browser upload form behind a per-run token URL.
 # Usage: maidshare-receive.py PORT OUTDIR TOKEN MINUTES
 # Prints "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
+import hmac
 import os
 import sys
 import time
@@ -43,8 +44,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"nope")
 
+    def _token_from_path(self):
+        # /<token> or /<token>/upload
+        parts = [p for p in self.path.split("?")[0].split("/") if p]
+        return parts[0] if parts else ""
+
+    def _token_ok(self):
+        got = self._token_from_path()
+        return bool(TOKEN) and hmac.compare_digest(got, TOKEN)
+
     def do_GET(self):  # noqa: N802
-        if self.path.rstrip("/") == f"/{TOKEN}":
+        parts = [p for p in self.path.split("?")[0].rstrip("/").split("/") if p]
+        if len(parts) == 1 and self._token_ok():
             self._ok("text/html", FORM)
         else:
             self._deny()
@@ -55,7 +66,8 @@ class Handler(BaseHTTPRequestHandler):
         return "".join(c for c in name if c.isprintable())
 
     def do_POST(self):  # noqa: N802
-        if self.path.rstrip("/") != f"/{TOKEN}/upload":
+        parts = [p for p in self.path.split("?")[0].rstrip("/").split("/") if p]
+        if not (len(parts) == 2 and parts[1] == "upload" and self._token_ok()):
             self._deny()
             return
         try:
