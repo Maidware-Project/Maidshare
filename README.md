@@ -1,10 +1,9 @@
 # MaidShare — send files and links from linux to your android phone
 
-no phone app needed for most of it. backends auto-picked in order
-(kdeconnect → adb → http), override with `--via`. every send tells you
-which backend it used — auto order can land on plain-HTTP LAN serving
-when the others are absent, so check the popup before walking away.
-no personal data inside.
+no phone app needed. it picks the best way automatically (KDE Connect
+first, then USB/ADB, then a throwaway wifi page) and tells you which
+one it used — check the popup before walking away. override anytime
+with `--via`.
 
 ## layout
 
@@ -56,29 +55,28 @@ maidshare --adb <host:port> FILE
 maidshare --receive [--time MIN]   # phone -> PC: browser upload, QR shown
 ```
 
-multiple files go out concurrently (one job each, failures tracked per
-file); HTTP files share a single throwaway server since the port is
-fixed for firewall sanity.
+send several files at once — each goes out on its own, and you
+get told per file if one fails.
 
-pin one KDE Connect phone: `echo '<id>' > ~/.config/kdeconnect-share-target`
-(`kdeconnect-cli -l` lists ids). ADB target: `--adb` or `$MAID_ADB`.
-HTTP server: port `$MAID_HTTP_PORT` (default 8077), valid `$SERVE_MIN`
-minutes (default 10).
+setup shortcuts: pin one phone with
+`echo '<id>' > ~/.config/kdeconnect-share-target`
+(`kdeconnect-cli -l` lists ids). USB target: `--adb` or `$MAID_ADB`.
 
-right-click any file(s) in dolphin → **Send to phone (MaidShare)**
-(or Send via QR). other direction, zero phone setup: `maidshare --receive`
-shows a QR; scan it and upload from the phone browser into
-`~/Downloads/MaidShare`. per-run token URL, auto-expires.
+two ways to use it: right-click any file(s) in dolphin →
+**Send to phone (MaidShare)** (or Send via QR). other direction needs
+no phone setup at all: `maidshare --receive` shows a QR code, scan it,
+upload from the phone browser — files land in `~/Downloads/MaidShare`.
+the link is token-protected and expires on its own.
 
-## notes
+## if it doesn't work
 
-if the phone can't reach the http/receive URL it's the firewall, not the
-script — it prints the exact open command (firewalld/ufw) instead of
-failing silently. kdeconnect backend needs pair + same network. adb
-backend needs an authorized device (`adb pair` / `adb connect`). prefer
-kdeconnect where you can; use the http backend only on networks you
-trust, and stop the session (Ctrl-C) when done — anyone on the LAN with
-the URL can download while it serves.
+phone can't reach the page? that's your firewall, not the script — it
+prints the exact command to open it (firewalld/ufw). otherwise: KDE
+Connect needs the phone paired and on the same wifi; USB needs an
+authorized device (`adb pair` / `adb connect`). prefer KDE Connect
+when you can. only use the wifi-page method on networks you trust,
+and stop it (Ctrl-C) when done — anyone on the network with the link
+can download while it's up.
 
 ## related projects
 
