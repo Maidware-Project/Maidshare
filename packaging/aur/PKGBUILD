@@ -1,0 +1,26 @@
+# Maintainer: visa <yahalom.mauni@protonmail.com>
+pkgname=maidshare-git
+pkgver=0.2.r1.g0000000
+pkgrel=1
+pkgdesc="Send files and links from Linux to Android (kdeconnect/adb/QR, no phone app)"
+arch=('any')
+url="https://github.com/Maidware-Project/Maidshare"
+license=('MIT')
+depends=('python3' 'qrencode')
+optdepends=('kdeconnect: best backend (paired phone on LAN)'
+            'android-tools: ADB backend')
+makedepends=('git')
+provides=('maidshare')
+conflicts=('maidshare')
+source=("git+https://github.com/Maidware-Project/Maidshare.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "Maidshare"
+  printf "0.2.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+  cd "Maidshare"
+  DESTDIR="$pkgdir" bash install.sh --prefix=/usr --no-packages --no-config
+}
