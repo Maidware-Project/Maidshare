@@ -1,0 +1,9 @@
+[Nemo Action]
+Name=Send to phone (MaidShare)
+Comment=Send files to your Android phone
+Exec=maidshare %F
+Icon=smartphone
+Selection=any
+Extensions=nodirs;
+Separator=false
+Quote=double
