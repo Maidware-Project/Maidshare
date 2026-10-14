@@ -96,3 +96,10 @@ bash install.sh --uninstall --purge    # everything out including those, no ques
 ## License
 
 MIT — see LICENSE.
+
+## works with the Maid suite
+
+Stands alone, plays nice: [Maid AU](https://github.com/visadaking) pulls
+Maidshare updates (`MAID_SUITE`, deploy with `UPDATE_MAID_DEPLOY=1`),
+and your KDE Connect pairing is shared with Maid BT phone features —
+pair once, both work.
