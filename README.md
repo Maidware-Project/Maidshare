@@ -30,6 +30,9 @@ backends are optional and auto-detected — install any of them:
 | http backend | python + qrencode (opt) | python3 + qrencode | python3 + qrencode | python3 + qrencode |
 | picker/popups | kdialog or zenity | kdialog or zenity | kdialog or zenity | kdialog or zenity |
 
+no services here — everything runs on demand when you click it or scan
+a code, so init doesn't matter. fork it for whatever setup you run.
+
 ## installation
 
 ```sh
