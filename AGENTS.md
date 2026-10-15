@@ -17,6 +17,7 @@ cleverness. The goal is users who understand their system, not users
 dependent on one.
 
 Phone↔PC file sharing. Backends auto-picked kdeconnect → adb → http.
+Lowercase terse voice in docs (README, messages, popups).
 
 ## Layout
 

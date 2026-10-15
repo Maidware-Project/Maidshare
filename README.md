@@ -5,6 +5,26 @@ first, then USB/ADB, then a throwaway wifi page) and tells you which
 one it used — check the popup before walking away. override anytime
 with `--via`.
 
+## quick start
+
+```sh
+bash install.sh            # copy + icon, reports which backends work
+maidshare file.pdf         # picks KDE Connect, ADB, or wifi page for you
+maidshare --receive        # phone uploads to your PC via QR + browser
+```
+
+## why not just KDE Connect / LocalSend / Snapdrop?
+
+KDE Connect alone is the best backend and Maidshare uses it first —
+but it needs the app installed, paired, same wifi. Maidshare covers
+the rest: USB/ADB with no network at all, and a QR wifi page with
+zero phone setup. vs Snapdrop/LocalSend: no third app, no account,
+files land straight in `~/Downloads/MaidShare`, and the receive side
+is token + https + expiry by default.
+
+tested daily on openSUSE Tumbleweed → Android; backends auto-detect
+(kdeconnect / adb / python3+openssl). suite green in CI.
+
 ## layout
 
 ```
