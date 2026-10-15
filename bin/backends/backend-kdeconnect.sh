@@ -15,7 +15,7 @@ backend_send() {
     sorry "No reachable phone. Pair it in KDE Connect first (same Wi-Fi, accept pairing)."
     return 1
   fi
-  label="$(kdeconnect-cli -l 2>/dev/null | grep "$id" | head -n1 | sed -e 's/^- //' -e 's/: .*//')"
+  label="$(kdeconnect-cli -l 2>/dev/null | grep -F -- "$id" | head -n1 | sed -e 's/^- //' -e 's/: .*//')"
   label="${label:-phone}"
   if kdeconnect-cli -d "$id" --share "$file" >/dev/null 2>&1; then
     popup "Sent $(basename "$file") to $label (KDE Connect)"
