@@ -1,6 +1,6 @@
-# review checklist
+# before a change ships
 
-run through these before a change ships.
+five checks. a change isn't done until all five hold.
 
 1. plain words. could a non-technical friend follow the README diff with
    no help? errors should say what to do, not just what broke.

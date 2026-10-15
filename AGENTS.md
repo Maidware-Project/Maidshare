@@ -1,16 +1,14 @@
 # AGENTS.md - Maidshare (for AI assistants; humans see README.md)
 
-One maintainer plus a few friends helping out. Keep changes small enough
-to review, skip refactors nobody asked for, and ask before adding a
-dependency.
+One maintainer plus a friend or two. Keep changes small enough to review,
+skip refactors nobody asked for, and ask before pulling in a dependency.
 
-Say what you actually did, not what you were asked to do. If a test,
-a build, or a hardware check didn't happen this session, don't write
-that it passed. Failures and shortcuts are worth writing down as they
-are.
+Say what you actually did, not what you were asked to do. The receive side
+moves files between two machines, so "the tests passed" has to mean you ran
+them, not that they look like they would.
 
-The assistant helps, a person decides. Write so somebody can follow it
-with no assistant around: plain names, plain words, nothing clever.
+The assistant helps, a person decides. Write for the next reader, not for
+the tool that typed it.
 
 Phone↔PC file sharing. Backends auto-picked kdeconnect → adb → http.
 Lowercase terse voice in docs (README, messages, popups).
