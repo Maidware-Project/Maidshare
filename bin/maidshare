@@ -57,10 +57,11 @@ do_receive() {
   # shellcheck disable=SC1090
   . "$BINDIR/maid-cert.sh"
   certdir=$(mktemp -d -t maidshare-cert-XXXXXX) || { sorry "No temp dir. Is /tmp writable?"; return 1; }
-  fp=$(maid_cert "$certdir") || { rm -rf "$certdir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
+  trap 'rm -rf "$certdir"' EXIT INT TERM
+  fp=$(maid_cert "$certdir") || { rm -rf "$certdir"; trap - EXIT INT TERM; sorry "Need the openssl CLI for the encrypted link."; return 1; }
   token=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
-  if [ -z "$lan" ]; then rm -rf "$certdir"; sorry "No LAN address found. Are you offline?"; return 1; fi
+  if [ -z "$lan" ]; then rm -rf "$certdir"; trap - EXIT INT TERM; sorry "No LAN address found. Are you offline?"; return 1; fi
   url="https://$lan:$port/$token"
   firewall_hint "$port" &
   if command -v qrencode >/dev/null 2>&1; then
@@ -72,6 +73,7 @@ do_receive() {
   before=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
   python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" "$certdir/cert.pem" "$certdir/key.pem" 2>/dev/null || true
   rm -rf "$certdir"
+  trap - EXIT INT TERM
   after=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
   if [ "$before" != "$after" ]; then
     popup "Received files are in $outdir"
