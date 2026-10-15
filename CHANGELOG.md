@@ -1,5 +1,10 @@
 # changelog
 
+## dispatcher fix
+
+- parallel sends no longer join backend and filename with `|`; filenames
+  containing a literal pipe now send to the right backend intact.
+
 ## receive hardening + concurrency
 
 - uploads save atomically (O_EXCL, concurrent same-name uploads can't
