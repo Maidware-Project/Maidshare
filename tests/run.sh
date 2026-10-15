@@ -82,7 +82,7 @@ rm -f /tmp/linkevil /tmp/victim.txt
 [ "$(curl -sk -F "f=@/tmp/ms-t1.txt" "$RU/upload")" = "saved: ms-t1-2.txt" ] || fail "dup rename"
 [ "$(cat /tmp/ms-dl/MaidShare/ms-t1.txt)" = "one" ] || fail "upload content"
 # concurrency: 6 parallel uploads must all succeed (slots recycle, no deadlock)
-# (wait only the curl pids — never the background server itself)
+# (wait only the curl pids - never the background server itself)
 rm -f /tmp/ms-par-*.txt
 parpids=""
 for i in 1 2 3 4 5 6; do
