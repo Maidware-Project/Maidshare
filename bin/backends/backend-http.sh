@@ -71,3 +71,5 @@ PY
   echo "MaidShare serving $# file(s) for ${SERVE_MIN} min (Ctrl-C stops early):$urls"
   sleep $((SERVE_MIN * 60))
   kill "$server_pid" 2>/dev/null || true
+  rm -rf "$dir"
+}
