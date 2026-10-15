@@ -122,7 +122,7 @@ bash install.sh --uninstall --purge    # everything out including those, no ques
 
 ## License
 
-MIT — see LICENSE. a Maidware Project: forkable open-source tools for linux users.
+MIT — see LICENSE.
 
 ## works with the Maid suite
 
