@@ -19,7 +19,8 @@ done
 say()  { echo "==> $*"; }
 
 if [ "$UNINST" = "1" ]; then
-  rm -f "$HOME"/.local/bin/maidshare "$HOME"/.local/bin/maidshare-receive.py
+  rm -f "$HOME"/.local/bin/maidshare "$HOME"/.local/bin/maidshare-receive.py \
+    "$HOME"/.local/bin/maid-cert.sh
   rm -rf "$HOME"/.local/bin/backends
   rm -f "$HOME"/.local/share/applications/maidshare.desktop \
     "$HOME"/.local/share/kio/servicemenus/maidshare.desktop
@@ -67,6 +68,7 @@ for f in "$PKGDIR"/bin/backends/*.sh; do
 done
 [ "$CHECK" = "0" ] && chmod +x "$HOME/.local/bin/maidshare" 2>/dev/null || true
 copy_one "$PKGDIR/bin/maidshare-receive.py" "$HOME/.local/bin/maidshare-receive.py"
+copy_one "$PKGDIR/bin/maid-cert.sh" "$HOME/.local/bin/maid-cert.sh"
 copy_one "$PKGDIR/desktop/maidshare.desktop" \
   "$HOME/.local/share/applications/maidshare.desktop" 1
 copy_one "$PKGDIR/servicemenu/maidshare.desktop" \
@@ -80,5 +82,6 @@ say "backend status on this machine:"
 command -v kdeconnect-cli >/dev/null 2>&1 && say "  kdeconnect: yes" || say "  kdeconnect: MISSING (best backend — install your distro's kdeconnect package)"
 command -v adb >/dev/null 2>&1 && say "  adb: yes" || say "  adb: missing (optional; android-tools for the ADB backend)"
 command -v python3 >/dev/null 2>&1 && say "  python3: yes (http backend)" || say "  python3: MISSING"
+command -v openssl >/dev/null 2>&1 && say "  openssl: yes (https for http backend)" || say "  openssl: MISSING (http backend stays off without it)"
 command -v qrencode >/dev/null 2>&1 && say "  qrencode: yes (terminal QR)" || say "  qrencode: missing (optional; URL still works)"
 say "done. Pin it: launcher -> MaidShare -> Pin to Task Manager."

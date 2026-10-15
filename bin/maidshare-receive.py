@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 # MaidShare receive end: browser upload form behind a per-run token URL.
-# Usage: maidshare-receive.py PORT OUTDIR TOKEN MINUTES
-# Prints "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
+# Usage: maidshare-receive.py PORT OUTDIR TOKEN MINUTES CERT KEY
+# TLS is mandatory (fail closed: no cert, no server). Prints
+# "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
 import hmac
 import os
+import ssl
 import sys
 import time
 from email.parser import BytesParser
 from email.policy import HTTP
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+if len(sys.argv) < 7:
+    print("need CERT KEY args (TLS is mandatory)", file=sys.stderr)
+    sys.exit(2)
 PORT = int(sys.argv[1])
 OUTDIR = sys.argv[2]
 TOKEN = sys.argv[3]
 MINUTES = int(sys.argv[4])
+CERT = sys.argv[5]
+KEY = sys.argv[6]
 os.makedirs(OUTDIR, exist_ok=True)
 STOP_AT = time.time() + MINUTES * 60
 
@@ -126,7 +133,10 @@ class Handler(BaseHTTPRequestHandler):
 
 srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
 srv.timeout = 1
-print(f"[recv] http://<lan>:{PORT}/{TOKEN} -> {OUTDIR} ({MINUTES} min)", flush=True)
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ctx.load_cert_chain(CERT, KEY)
+srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+print(f"[recv] https://<lan>:{PORT}/{TOKEN} -> {OUTDIR} ({MINUTES} min)", flush=True)
 while time.time() < STOP_AT:
     srv.handle_request()
 print("[recv] done", flush=True)
