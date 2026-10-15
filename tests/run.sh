@@ -81,9 +81,35 @@ printf newdata > /tmp/linkevil
 rm -f /tmp/linkevil /tmp/victim.txt
 [ "$(curl -sk -F "f=@/tmp/ms-t1.txt" "$RU/upload")" = "saved: ms-t1-2.txt" ] || fail "dup rename"
 [ "$(cat /tmp/ms-dl/MaidShare/ms-t1.txt)" = "one" ] || fail "upload content"
+# concurrency: 6 parallel uploads must all succeed (slots recycle, no deadlock)
+rm -f /tmp/ms-par-*.txt
+for i in 1 2 3 4 5 6; do
+  curl -sk -F "f=@/tmp/ms-t1.txt" "$RU/upload" > /tmp/ms-par-$i.txt 2>/dev/null &
+done
+wait
+for i in 1 2 3 4 5 6; do
+  grep -q "^saved: ms-t1" /tmp/ms-par-$i.txt || fail "parallel upload $i failed"
+done
+rm -f /tmp/ms-par-*.txt
+ok "receive concurrent uploads"
 # oversize rejected by header check before any body is read
 [ "$(timeout 15 curl -sk -o /dev/null -w "%{http_code}" -X POST -H "Content-Length: 600000000" -H "Content-Type: multipart/form-data; boundary=x" --data-binary "" "$RU/upload")" = "403" ] || fail "oversize not rejected"
 ok "receive upload, traversal, dupes, size cap"
+
+echo "== receive: configurable size cap =="
+rm -rf /tmp/ms-dl2 && mkdir -p /tmp/ms-dl2
+head -c 2000000 /dev/urandom > /tmp/ms-big.bin
+MAID_HTTP_PORT=8079 MAID_MAX_MB=1 XDG_DOWNLOAD_DIR=/tmp/ms-dl2 bash "$PKGDIR/bin/maidshare" --receive --time 1 >/tmp/ms-cap.txt 2>&1 &
+sleep 4
+RCAP=$(grep -oE "https://[0-9.]+:[0-9]+/[A-Za-z0-9_-]+" /tmp/ms-cap.txt | head -n 1)
+[ -n "$RCAP" ] || fail "capped server URL missing"
+[ "$(curl -sk -o /dev/null -w "%{http_code}" -F "f=@/tmp/ms-big.bin" "$RCAP/upload")" = "403" ] || fail "2MB over 1MB cap not rejected"
+[ "$(curl -sk -F "f=@/tmp/ms-t1.txt" "$RCAP/upload")" = "saved: ms-t1.txt" ] || fail "small upload under cap failed"
+for p in $(pgrep -f "maidshare-receive.py"); do
+  [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+done
+rm -rf /tmp/ms-dl2 /tmp/ms-big.bin /tmp/ms-cap.txt
+ok "receive size cap configurable"
 
 echo "== cleanup =="
 for p in $(pgrep -f "maidshare-receive.py"); do
