@@ -56,7 +56,8 @@ maidshare --receive [--time MIN]   # phone -> PC: browser upload, QR shown
 ```
 
 send several files at once — each goes out on its own, and you
-get told per file if one fails.
+get told per file if one fails. filenames with spaces, quotes, or
+even `|` are sent intact.
 
 setup shortcuts: pin one phone with
 `echo '<id>' > ~/.config/kdeconnect-share-target`
