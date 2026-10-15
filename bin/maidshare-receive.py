@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # MaidShare receive end: browser upload form behind a per-run token URL.
 # Usage: maidshare-receive.py PORT OUTDIR TOKEN MINUTES CERT KEY
-# TLS is mandatory (fail closed: no cert, no server). Prints
-# "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
+# TLS is mandatory (fail closed: no cert, no server). Resource bounds:
+# uploads stream to RAM in 64 KiB chunks (never one big read), capped at
+# MAID_MAX_MB (default 500), at most 4 concurrent uploads (rest get 503),
+# 60 s per-connection socket timeout, and the whole server auto-expires.
+# Prints "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
 import hmac
 import os
 import ssl
 import sys
+import threading
 import time
 from email.parser import BytesParser
 from email.policy import HTTP
@@ -21,6 +25,9 @@ TOKEN = sys.argv[3]
 MINUTES = int(sys.argv[4])
 CERT = sys.argv[5]
 KEY = sys.argv[6]
+MAX_BYTES = int(os.environ.get("MAID_MAX_MB", "500")) * 1024 * 1024
+CHUNK = 65536
+MAX_UPLOADS = 4
 os.makedirs(OUTDIR, exist_ok=True)
 STOP_AT = time.time() + MINUTES * 60
 
