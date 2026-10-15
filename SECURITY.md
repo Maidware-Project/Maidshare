@@ -1,11 +1,7 @@
 # security
 
-MaidShare moves files between a phone and this machine. it does not load
-machine-learning models - no torch, onnx, gguf, keras or pickle anywhere -
-so the model supply-chain threats (zip-slip, pickle/pytorch malcode, onnx
-backdoor, gguf ssti) do not apply here.
-
-what does apply to a file-receiving tool, and how it is handled:
+MaidShare moves files between a phone and this machine. here is what it
+does with what it receives, and how it is kept safe:
 
 - path traversal: an upload whose filename carries `..` or an absolute
   path is reduced to its basename. covered by `tests/run.sh`.
