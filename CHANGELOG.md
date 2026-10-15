@@ -1,5 +1,12 @@
 # changelog
 
+## receive resource bounds
+
+- uploads stream in 64 KiB chunks (RAM stays flat), capped at
+  `MAID_MAX_MB` (default keeps the old 500), at most 4 concurrent
+  uploads (rest get 503), 60 s per-connection socket timeout, and
+  the server still auto-expires. plaintext answers nothing.
+
 ## encrypted browser directions (https + TOFU)
 
 - send (http backend) and receive now serve https only, with a
