@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installer: copies files (no symlinks), desktop icon with home path fixed.
-# Backends are optional and auto-detected at runtime — install any of:
+# Backends are optional and auto-detected at runtime - install any of:
 #   KDE Connect (kdeconnect-cli) / ADB (android-tools) / python3 + qrencode.
 # Usage: ./install.sh [--check] [--uninstall [--purge]]
 set -u
@@ -79,7 +79,7 @@ command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >/dev/
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
 
 say "backend status on this machine:"
-command -v kdeconnect-cli >/dev/null 2>&1 && say "  kdeconnect: yes" || say "  kdeconnect: MISSING (best backend — install your distro's kdeconnect package)"
+command -v kdeconnect-cli >/dev/null 2>&1 && say "  kdeconnect: yes" || say "  kdeconnect: MISSING (best backend - install your distro's kdeconnect package)"
 command -v adb >/dev/null 2>&1 && say "  adb: yes" || say "  adb: missing (optional; android-tools for the ADB backend)"
 command -v python3 >/dev/null 2>&1 && say "  python3: yes (http backend)" || say "  python3: MISSING"
 command -v openssl >/dev/null 2>&1 && say "  openssl: yes (https for http backend)" || say "  openssl: MISSING (http backend stays off without it)"

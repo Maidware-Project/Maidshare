@@ -5,7 +5,7 @@
 # terminal QR). TLS uses a throwaway per-run cert (TOFU: the fingerprint
 # is printed for comparison with the browser warning).
 # Serves a copy from a temp dir for SERVE_MIN minutes, then cleans up.
-# No directory listings — only exact file paths under the secret subdir.
+# No directory listings - only exact file paths under the secret subdir.
 # Provides: backend_available, backend_send. Uses popup()/sorry() from dispatcher.
 SERVE_MIN="${SERVE_MIN:-10}"
 PORT="${MAID_HTTP_PORT:-8077}"

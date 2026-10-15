@@ -38,7 +38,7 @@ firewall_hint() {
   # tell the user how to open $1/tcp instead of failing silently later
   if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
     firewall-cmd --query-port="$1/tcp" >/dev/null 2>&1 || \
-      echo "MaidShare: phone can't reach TCP $1? run: sudo firewall-cmd --add-port=$1/tcp (runtime only, gone on reboot — add --permanent to keep it)"
+      echo "MaidShare: phone can't reach TCP $1? run: sudo firewall-cmd --add-port=$1/tcp (runtime only, gone on reboot - add --permanent to keep it)"
   elif command -v ufw >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     sudo -n ufw status 2>/dev/null | grep -qw "$1/tcp" || \
       echo "MaidShare: phone can't reach TCP $1? run: sudo ufw allow $1/tcp"

@@ -1,10 +1,10 @@
-# MaidShare — send files and links from linux to your android phone
+# MaidShare - send files and links from linux to your android phone
 
 category: files & sharing
 
 no phone app needed. it picks the best way automatically (KDE Connect
 first, then USB/ADB, then a throwaway wifi page) and tells you which
-one it used — check the popup before walking away. override anytime
+one it used - check the popup before walking away. override anytime
 with `--via`.
 
 ## quick start
@@ -17,7 +17,7 @@ maidshare --receive        # phone uploads to your PC via QR + browser
 
 ## why not just KDE Connect / LocalSend / Snapdrop?
 
-KDE Connect alone is the best backend and Maidshare uses it first —
+KDE Connect alone is the best backend and Maidshare uses it first -
 but it needs the app installed, paired, same wifi. Maidshare covers
 the rest: USB/ADB with no network at all, and a QR wifi page with
 zero phone setup. vs Snapdrop/LocalSend: no third app, no account,
@@ -42,7 +42,7 @@ install.sh            installer (copies, never symlinks)
 
 ## requirements per distro
 
-backends are optional and auto-detected — install any of them:
+backends are optional and auto-detected - install any of them:
 
 | need | arch | debian/ubuntu | fedora | opensuse |
 |---|---|---|---|---|
@@ -51,7 +51,7 @@ backends are optional and auto-detected — install any of them:
 | http backend | python + openssl + qrencode (opt) | python3 + openssl + qrencode | python3 + openssl + qrencode | python3 + openssl + qrencode |
 | picker/popups | kdialog or zenity | kdialog or zenity | kdialog or zenity | kdialog or zenity |
 
-no services here — everything runs on demand when you click it or scan
+no services here - everything runs on demand when you click it or scan
 a code, so init doesn't matter. fork it for whatever setup you run.
 
 ## installation
@@ -62,7 +62,7 @@ bash install.sh --check    # dry run
 ```
 
 existing files are backed up to `*.bak-<timestamp>`. install.sh downloads
-nothing — every dependency comes from your distro repos. then: launcher →
+nothing - every dependency comes from your distro repos. then: launcher →
 **MaidShare** (pin to task manager for one click).
 
 ## usage
@@ -77,7 +77,7 @@ maidshare --adb <host:port> FILE
 maidshare --receive [--time MIN]   # phone -> PC: browser upload, QR shown
 ```
 
-send several files at once — each goes out on its own, and you
+send several files at once - each goes out on its own, and you
 get told per file if one fails. filenames with spaces, quotes, or
 even `|` are sent intact.
 
@@ -88,31 +88,31 @@ setup shortcuts: pin one phone with
 two ways to use it: right-click any file(s) in dolphin →
 **Send to phone (MaidShare)** (or Send via QR). other direction needs
 no phone setup at all: `maidshare --receive` shows a QR code, scan it,
-upload from the phone browser — files land in `~/Downloads/MaidShare`.
+upload from the phone browser - files land in `~/Downloads/MaidShare`.
 the link is token-protected and expires on its own.
 
 both browser directions run over https with a throwaway per-run cert
 (1-day validity, deleted after). first visit shows a certificate
-warning — that's expected: compare the fingerprint in your terminal
+warning - that's expected: compare the fingerprint in your terminal
 with the one the browser shows, then proceed. token + expiry still
 apply on top.
 
 ## if it doesn't work
 
-phone can't reach the page? that's your firewall, not the script — it
+phone can't reach the page? that's your firewall, not the script - it
 prints the exact command to open it (firewalld/ufw). otherwise: KDE
 Connect needs the phone paired and on the same wifi; USB needs an
 authorized device (`adb pair` / `adb connect`). prefer KDE Connect
 when you can. only use the wifi-page method on networks you trust,
-and stop it (Ctrl-C) when done — anyone on the network with the link
+and stop it (Ctrl-C) when done - anyone on the network with the link
 can download while it's up.
 
 ## related projects
 
-- [OpenDrop](https://github.com/seemoo-lab/opendrop) — open AirDrop
+- [OpenDrop](https://github.com/seemoo-lab/opendrop) - open AirDrop
   implementation (send files/links to **Apple** receivers over AWDL).
   not a MaidShare backend on purpose: it targets iPhones/Macs, not
-  android, and needs AWDL radio support most linux laptops lack — but
+  android, and needs AWDL radio support most linux laptops lack - but
   if someone you share with is on apple hardware, that's the tool you would want to use. 
 
 ## uninstall
@@ -124,13 +124,13 @@ bash install.sh --uninstall --purge    # everything out including those, no ques
 
 ## License
 
-MIT — see LICENSE. a Maidware Project, Forkable open source tools served to help
+MIT - see LICENSE. a Maidware Project, Forkable open source tools served to help
 
 ## works with the Maid suite
 
 Stands alone, plays nice: [Maid AU](https://github.com/Maidware-Project/Maid-AU) pulls
 Maidshare updates (`MAID_SUITE`, deploy with `UPDATE_MAID_DEPLOY=1`),
-and your KDE Connect pairing is shared with Maid BT phone features —
+and your KDE Connect pairing is shared with Maid BT phone features -
 pair once, both work.
 
 ## Linux Mint / Cinnamon

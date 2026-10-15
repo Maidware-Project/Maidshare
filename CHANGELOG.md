@@ -11,7 +11,7 @@
 
 - send (http backend) and receive now serve https only, with a
   throwaway per-run cert (openssl, 1-day validity, deleted after).
-  the terminal prints the sha256 fingerprint — compare it with the
+  the terminal prints the sha256 fingerprint - compare it with the
   browser's certificate warning before proceeding (trust on first
   use). token gate + auto-expiry still apply on top.
 - plaintext answers nothing on those ports anymore (tested).

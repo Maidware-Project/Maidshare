@@ -1,20 +1,16 @@
-# AGENTS.md — Maidshare (for AI assistants; humans see README.md)
+# AGENTS.md - Maidshare (for AI assistants; humans see README.md)
 
-One maintainer plus friends helping out — keep every change small,
-reviewable, and justified. No drive-by refactors, no new dependencies
-without asking.
+One maintainer plus a few friends helping out. Keep changes small enough
+to review, skip refactors nobody asked for, and ask before adding a
+dependency.
 
-Honesty is non-negotiable: say what you actually did versus what you
-were asked to do. Never claim a test ran, a build passed, or hardware
-was verified unless it truly happened in this session. Report failures
-and shortcuts plainly, mark uncertainty as uncertainty, and never hide
-a skipped step behind vague wording.
+Say what you actually did, not what you were asked to do. If a test,
+a build, or a hardware check didn't happen this session, don't write
+that it passed. Failures and shortcuts are worth writing down as they
+are.
 
-People over AI, always: this project is human-built and human-reviewed.
-AI assists, humans decide. Write code, messages, and docs a person can
-follow with no assistant involved — clear names, plain language, no
-cleverness. The goal is users who understand their system, not users
-dependent on one.
+The assistant helps, a person decides. Write so somebody can follow it
+with no assistant around: plain names, plain words, nothing clever.
 
 Phone↔PC file sharing. Backends auto-picked kdeconnect → adb → http.
 Lowercase terse voice in docs (README, messages, popups).
@@ -40,8 +36,8 @@ Lowercase terse voice in docs (README, messages, popups).
 
 ## Verify
 
-- `bash tests/run.sh` — includes upload, traversal, dupe, size-cap tests
-- `bash install.sh --check` — dry run
+- `bash tests/run.sh` - includes upload, traversal, dupe, size-cap tests
+- `bash install.sh --check` - dry run
 - Uninstaller contract: `--uninstall` keeps settings/received files
   (asks), `--purge` removes everything. Test with a fake HOME only.
 
