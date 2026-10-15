@@ -1,5 +1,7 @@
 # MaidShare — send files and links from linux to your android phone
 
+category: files & sharing
+
 no phone app needed. it picks the best way automatically (KDE Connect
 first, then USB/ADB, then a throwaway wifi page) and tells you which
 one it used — check the popup before walking away. override anytime
