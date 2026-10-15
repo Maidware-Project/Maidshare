@@ -121,7 +121,9 @@ candidates_for() {
 
 FAILED=0
 httpfiles=()
-parjobs=()
+# parallel arrays, not a joined string: filenames may contain "|"
+par_backends=()
+par_files=()
 for FILE in "$@"; do
   case "$FILE" in
     http://*|https://*) : ;;
@@ -135,7 +137,8 @@ for FILE in "$@"; do
   if [ "$b" = "http" ]; then
     httpfiles+=("$FILE")   # fixed port: served together, sequentially
   else
-    parjobs+=("$b|$FILE")  # independent sends run concurrently
+    par_backends+=("$b")   # independent sends run concurrently
+    par_files+=("$FILE")
   fi
 done
 
@@ -146,8 +149,8 @@ if [ "${#httpfiles[@]}" -gt 0 ]; then
 fi
 
 pids=""
-for item in ${parjobs[@]+"${parjobs[@]}"}; do
-  send_one "${item%%|*}" "${item#*|}" &
+for i in ${!par_backends[@]+"${!par_backends[@]}"}; do
+  send_one "${par_backends[$i]}" "${par_files[$i]}" &
   pids="$pids $!"
 done
 for p in $pids; do wait "$p" || FAILED=1; done
