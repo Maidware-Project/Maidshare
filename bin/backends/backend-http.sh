@@ -1,21 +1,26 @@
 #!/usr/bin/env bash
-# Backend: throwaway LAN HTTP server + QR code. Files only.
+# Backend: throwaway LAN HTTPS server + QR code. Files only.
 # Zero phone-side requirements: scan the code (or open the URL) in any
-# browser/camera. Needs: python3 (qrencode optional, for terminal QR).
+# browser/camera. Needs: python3 + openssl CLI (qrencode optional, for
+# terminal QR). TLS uses a throwaway per-run cert (TOFU: the fingerprint
+# is printed for comparison with the browser warning).
 # Serves a copy from a temp dir for SERVE_MIN minutes, then cleans up.
 # No directory listings — only exact file paths under the secret subdir.
 # Provides: backend_available, backend_send. Uses popup()/sorry() from dispatcher.
 SERVE_MIN="${SERVE_MIN:-10}"
 PORT="${MAID_HTTP_PORT:-8077}"
 
-backend_available() { command -v python3 >/dev/null 2>&1; }
+backend_available() { command -v python3 >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; }
 
 backend_send() {
   # $@ = files. Served together from one throwaway server (fixed port).
-  local lan dir sub base url enc server_pid f urls="" first_url=""
+  local lan dir sub base url enc fp server_pid f urls="" first_url=""
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
   if [ -z "$lan" ]; then sorry "No LAN address found. Are you offline?"; return 1; fi
   dir=$(mktemp -d -t maidshare-XXXXXX) || return 1
+  # shellcheck disable=SC1090
+  . "$BINDIR/maid-cert.sh"
+  fp=$(maid_cert "$dir") || { rm -rf "$dir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
   sub=$(python3 -c "import secrets; print(secrets.token_hex(6))")
   mkdir -p "$dir/$sub" || { rm -rf "$dir"; return 1; }
   for f in "$@"; do
@@ -25,7 +30,7 @@ backend_send() {
     base=$(basename "$f")
     cp -a "$f" "$dir/$sub/$base" || { rm -rf "$dir"; return 1; }
     enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$base")
-    url="http://$lan:$PORT/$sub/$enc"
+    url="https://$lan:$PORT/$sub/$enc"
     urls="$urls
 $url"
     [ -z "$first_url" ] && first_url="$url"
@@ -33,13 +38,16 @@ $url"
   firewall_hint "$PORT" &
 
   # Custom server: 404 on / and any directory. Only exact file paths are served.
-  python3 - "$PORT" "$dir" <<'PY' >/dev/null 2>&1 &
+  python3 - "$PORT" "$dir" "$dir/cert.pem" "$dir/key.pem" <<'PY' >/dev/null 2>&1 &
 import os
+import ssl
 import sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 PORT = int(sys.argv[1])
 ROOT = sys.argv[2]
+CERT = sys.argv[3]
+KEY = sys.argv[4]
 
 class NoIndexHandler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
@@ -59,7 +67,11 @@ class NoIndexHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-ThreadingHTTPServer(("0.0.0.0", PORT), NoIndexHandler).serve_forever()
+srv = ThreadingHTTPServer(("0.0.0.0", PORT), NoIndexHandler)
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ctx.load_cert_chain(CERT, KEY)
+srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+srv.serve_forever()
 PY
   server_pid=$!
   trap 'kill "$server_pid" 2>/dev/null; rm -rf "$dir"' EXIT INT TERM
@@ -69,6 +81,7 @@ PY
   fi
   popup "On your phone open (valid ${SERVE_MIN} min):$urls"
   echo "MaidShare serving $# file(s) for ${SERVE_MIN} min (Ctrl-C stops early):$urls"
+  echo "cert fingerprint (compare with the browser warning): $fp"
   sleep $((SERVE_MIN * 60))
   kill "$server_pid" 2>/dev/null || true
   rm -rf "$dir"

@@ -46,24 +46,32 @@ firewall_hint() {
 }
 
 do_receive() {
-  # phone -> PC: browser upload form behind a per-run token URL
+  # phone -> PC: browser upload form behind a per-run token URL, over
+  # TLS with a throwaway per-run cert (TOFU: compare the printed
+  # fingerprint with the browser's certificate warning).
   local mins="${SERVE_MIN:-10}" port="${MAID_HTTP_PORT:-8078}"
   if [ "${1:-}" = "--time" ]; then mins="${2:-10}"; shift 2 || true; fi
   local outdir="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}/MaidShare"
   mkdir -p "$outdir"
-  local token lan url before after
+  local token lan url fp certdir before after
+  # shellcheck disable=SC1090
+  . "$BINDIR/maid-cert.sh"
+  certdir=$(mktemp -d -t maidshare-cert-XXXXXX) || { sorry "No temp dir. Is /tmp writable?"; return 1; }
+  fp=$(maid_cert "$certdir") || { rm -rf "$certdir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
   token=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
   lan=$(ip route get 1.1.1.1 2>/dev/null | grep -oP "src \K[0-9.]+" | head -n 1)
-  [ -n "$lan" ] || { sorry "No LAN address found. Are you offline?"; return 1; }
-  url="http://$lan:$port/$token"
+  if [ -z "$lan" ]; then rm -rf "$certdir"; sorry "No LAN address found. Are you offline?"; return 1; fi
+  url="https://$lan:$port/$token"
   firewall_hint "$port" &
   if command -v qrencode >/dev/null 2>&1; then
     qrencode -t ANSIUTF8 "$url" 2>/dev/null || true
   fi
   popup "Receive mode: scan/open on phone (valid ${mins} min):\n$url"
   echo "MaidShare receive at $url -> $outdir (${mins} min, Ctrl-C stops)"
+  echo "cert fingerprint (compare with the browser warning): $fp"
   before=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
-  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" 2>/dev/null || true
+  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" "$certdir/cert.pem" "$certdir/key.pem" 2>/dev/null || true
+  rm -rf "$certdir"
   after=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
   if [ "$before" != "$after" ]; then
     popup "Received files are in $outdir"
@@ -130,7 +138,7 @@ for FILE in "$@"; do
     *) [ -e "$FILE" ] || { sorry "File not found:\n$FILE"; FAILED=1; continue; } ;;
   esac
   if ! b=$(pick_backend "$FILE" "$(candidates_for "$FILE")"); then
-    sorry "No usable backend for $(basename "$FILE"). Install KDE Connect, connect ADB, or ensure python3 exists."
+    sorry "No usable backend for $(basename "$FILE"). Install KDE Connect, connect ADB, or ensure python3 + openssl exist."
     FAILED=1
     continue
   fi

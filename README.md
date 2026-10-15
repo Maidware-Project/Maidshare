@@ -26,7 +26,7 @@ backends are optional and auto-detected — install any of them:
 |---|---|---|---|---|
 | kdeconnect backend | kdeconnect | kdeconnect | kdeconnect | kdeconnect-kde |
 | adb backend | android-tools | adb | android-tools | android-tools |
-| http backend | python + qrencode (opt) | python3 + qrencode | python3 + qrencode | python3 + qrencode |
+| http backend | python + openssl + qrencode (opt) | python3 + openssl + qrencode | python3 + openssl + qrencode | python3 + openssl + qrencode |
 | picker/popups | kdialog or zenity | kdialog or zenity | kdialog or zenity | kdialog or zenity |
 
 no services here — everything runs on demand when you click it or scan
@@ -68,6 +68,12 @@ two ways to use it: right-click any file(s) in dolphin →
 no phone setup at all: `maidshare --receive` shows a QR code, scan it,
 upload from the phone browser — files land in `~/Downloads/MaidShare`.
 the link is token-protected and expires on its own.
+
+both browser directions run over https with a throwaway per-run cert
+(1-day validity, deleted after). first visit shows a certificate
+warning — that's expected: compare the fingerprint in your terminal
+with the one the browser shows, then proceed. token + expiry still
+apply on top.
 
 ## if it doesn't work
 
