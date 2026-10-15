@@ -42,6 +42,8 @@ FORM = """<html><head><meta name="viewport" content="width=device-width">
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "maidshare-recv/1.0"
+    timeout = 60
+    slots = threading.Semaphore(MAX_UPLOADS)
 
     def log_message(self, fmt, *args):
         pass
@@ -80,6 +82,17 @@ class Handler(BaseHTTPRequestHandler):
         return "".join(c for c in name if c.isprintable())
 
     def do_POST(self):  # noqa: N802
+        if not Handler.slots.acquire(blocking=False):
+            self.send_response(503)
+            self.end_headers()
+            self.wfile.write(b"busy")
+            return
+        try:
+            self._do_post()
+        finally:
+            Handler.slots.release()
+
+    def _do_post(self):
         parts = [p for p in self.path.split("?")[0].rstrip("/").split("/") if p]
         if not (len(parts) == 2 and parts[1] == "upload" and self._token_ok()):
             self._deny()
@@ -88,14 +101,23 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
         except ValueError:
             length = 0
-        if length <= 0 or length > 500 * 1024 * 1024:
+        if length <= 0 or length > MAX_BYTES:
             self._deny()
             return
         ctype = self.headers.get("Content-Type", "")
         try:
-            body = self.rfile.read(length)
+            # stream in chunks: RAM stays flat no matter the declared size
+            body = bytearray()
+            remaining = length
+            while remaining > 0:
+                chunk = self.rfile.read(min(CHUNK, remaining))
+                if not chunk:
+                    self._deny()
+                    return
+                body += chunk
+                remaining -= len(chunk)
             msg = BytesParser(policy=HTTP).parsebytes(
-                b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + body)
+                b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + bytes(body))
         except Exception:  # noqa: BLE001 - malformed upload, reject it
             self._deny()
             return
