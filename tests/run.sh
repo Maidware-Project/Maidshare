@@ -52,6 +52,10 @@ P1=$(echo "$U1" | sed 's|^https://|http://|')
 [ -z "$(curl -s --max-time 10 "$P1" 2>/dev/null)" ] || fail "plaintext answered on TLS port"
 BASE=$(dirname "$U1")
 ROOT=$(echo "$U1" | grep -oE "https://[0-9.]+:[0-9]+")
+# key material lives outside the web root: direct requests must 404
+[ "$(curl -sk -o /dev/null -w "%{http_code}" "$ROOT/key.pem")" = "404" ] || fail "key.pem served!"
+[ "$(curl -sk -o /dev/null -w "%{http_code}" "$ROOT/cert.pem")" = "404" ] || fail "cert.pem served!"
+[ "$(curl -sk -o /dev/null -w "%{http_code}" "$ROOT/../key.pem")" = "404" ] || fail "traversal served!"
 [ "$(curl -sk "$ROOT/" | grep -c "ms-t")" = "0" ] || fail "filenames exposed at root"
 ok "https multi-file serve (token-gated)"
 

@@ -20,15 +20,18 @@ backend_send() {
   dir=$(mktemp -d -t maidshare-XXXXXX) || return 1
   # shellcheck disable=SC1090
   . "$BINDIR/maid-cert.sh"
-  fp=$(maid_cert "$dir") || { rm -rf "$dir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
+  # cert lives OUTSIDE the served root: the handler serves every file
+  # under $dir, so key.pem/cert.pem must never be under it.
+  certdir=$(mktemp -d -t maidshare-cert-XXXXXX) || { rm -rf "$dir"; return 1; }
+  fp=$(maid_cert "$certdir") || { rm -rf "$dir" "$certdir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
   sub=$(python3 -c "import secrets; print(secrets.token_hex(6))")
   mkdir -p "$dir/$sub" || { rm -rf "$dir"; return 1; }
   for f in "$@"; do
     case "$f" in
-      http://*|https://*) sorry "HTTP backend sends files only, not URLs.\nUse --via kdeconnect for links."; rm -rf "$dir"; return 1 ;;
+      http://*|https://*) sorry "HTTP backend sends files only, not URLs.\nUse --via kdeconnect for links."; rm -rf "$dir" "$certdir"; return 1 ;;
     esac
     base=$(basename "$f")
-    cp -a "$f" "$dir/$sub/$base" || { rm -rf "$dir"; return 1; }
+    cp -a "$f" "$dir/$sub/$base" || { rm -rf "$dir" "$certdir"; return 1; }
     enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$base")
     url="https://$lan:$PORT/$sub/$enc"
     urls="$urls
@@ -38,7 +41,7 @@ $url"
   firewall_hint "$PORT" &
 
   # Custom server: 404 on / and any directory. Only exact file paths are served.
-  python3 - "$PORT" "$dir" "$dir/cert.pem" "$dir/key.pem" <<'PY' >/dev/null 2>&1 &
+  python3 - "$PORT" "$dir" "$certdir/cert.pem" "$certdir/key.pem" <<'PY' >/dev/null 2>&1 &
 import os
 import ssl
 import sys
@@ -74,7 +77,7 @@ srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
 srv.serve_forever()
 PY
   server_pid=$!
-  trap 'kill "$server_pid" 2>/dev/null; rm -rf "$dir"' EXIT INT TERM
+  trap 'kill "$server_pid" 2>/dev/null; rm -rf "$dir" "$certdir"' EXIT INT TERM
 
   if command -v qrencode >/dev/null 2>&1; then
     qrencode -t ANSIUTF8 "$first_url" 2>/dev/null || true
@@ -84,5 +87,5 @@ PY
   echo "cert fingerprint (compare with the browser warning): $fp"
   sleep $((SERVE_MIN * 60))
   kill "$server_pid" 2>/dev/null || true
-  rm -rf "$dir"
+  rm -rf "$dir" "$certdir"
 }
