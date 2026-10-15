@@ -31,8 +31,12 @@ HOME="${TMPDIR:-/tmp}/maidshare-test-home" bash "$PKGDIR/install.sh" --check >/d
 ok "installer dry run clean"
 
 echo "== https backend: multi-file serve =="
-for p in $(pgrep -f "http.server 807[78]"); do
-  [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+# our servers run as `python3 - 8077 ...` (no "http.server" in argv),
+# plus the dispatcher parent holding the sleep: clear both.
+for pat in "python3 - 807[78]( |$)" "bin/maidshare --via http"; do
+  for p in $(pgrep -f "$pat"); do
+    [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+  done
 done
 sleep 1
 echo one > /tmp/ms-t1.txt; echo two > /tmp/ms-t2.txt
@@ -81,8 +85,10 @@ echo "== cleanup =="
 for p in $(pgrep -f "maidshare-receive.py"); do
   [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
 done
-for p in $(pgrep -f "http.server 807[78]"); do
-  [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+for pat in "python3 - 807[78]( |$)" "bin/maidshare --via http"; do
+  for p in $(pgrep -f "$pat"); do
+    [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+  done
 done
 rm -rf /tmp/ms-t1.txt /tmp/ms-t2.txt /tmp/evil.txt /tmp/ms-out.txt /tmp/ms-recv.txt /tmp/ms-dl /tmp/maidshare-test-home /tmp/etc
 ok "cleanup"
