@@ -26,8 +26,7 @@ Lowercase terse voice in docs (README, messages, popups).
   technical scope, no politics, stay neutral.
 - Commits: short lowercase summaries with a prefix (`fix:`, `feat:`, `docs:`,
   `tests:`, `chore:`), one logical change each. Sign off every commit
-  (`git commit -s`); AI-assisted work adds an `Assisted-by:` trailer
-  naming the tool. Bug fixes cite `Fixes: #N`.
+  (`git commit -s`). Bug fixes cite `Fixes: #N`.
 - Security-sensitive paths (receive upload): token-gated, auto-expire,
   traversal-tested. Keep the traversal tests green.
 - HTTP serving is throwaway by design; never background it.
