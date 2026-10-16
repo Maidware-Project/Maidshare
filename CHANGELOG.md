@@ -1,8 +1,18 @@
 # changelog
 
+## receive: uploads go straight to disk
+
+- the receive server no longer collects the request body in memory:
+  multipart parts are written to their final file as they arrive in
+  bounded chunks, so a huge upload costs kilobytes of RAM, not
+  gigabytes. the declared size is checked against free disk space
+  first, a new `MAID_MAX_FILE_MB` cap bounds each single file
+  (default: the request cap), and a rejected or broken upload leaves
+  no partial file behind.
+
 ## receive resource bounds
 
-- uploads stream in 64 KiB chunks (RAM stays flat), capped at
+- uploads stream in 64 KiB chunks straight to disk (RAM stays flat), capped at
   `MAID_MAX_MB` (default keeps the old 500), at most 4 concurrent
   uploads (rest get 503), 60 s per-connection socket timeout, and
   the server still auto-expires. plaintext answers nothing.

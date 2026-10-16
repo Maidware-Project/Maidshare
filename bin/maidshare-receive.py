@@ -2,18 +2,21 @@
 # MaidShare receive end: browser upload form behind a per-run token URL.
 # Usage: maidshare-receive.py PORT OUTDIR TOKEN MINUTES CERT KEY
 # TLS is mandatory (fail closed: no cert, no server). Resource bounds:
-# uploads stream to RAM in 64 KiB chunks (never one big read), capped at
-# MAID_MAX_MB (default 500), at most 4 concurrent uploads (rest get 503),
-# 60 s per-connection socket timeout, and the whole server auto-expires.
+# uploads are written straight to disk off the socket in MAID_RECV_CHUNK
+# chunks (default 64 KiB) - request bodies are never collected in RAM.
+# Caps: MAID_MAX_MB per request (default 500), MAID_MAX_FILE_MB per file
+# (default = request cap), 4 concurrent uploads (rest get 503), 60 s
+# per-connection socket timeout, free-disk precheck, partial files
+# removed on failure, and the whole server auto-expires. MAID_RECV_CHUNK
+# is a test knob to force boundary splits; production keeps 64 KiB.
 # Prints "SAVED <name>" per upload. Ctrl-C or timeout stops it. Stdlib only.
 import hmac
 import os
+import shutil
 import ssl
 import sys
 import threading
 import time
-from email.parser import BytesParser
-from email.policy import HTTP
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 if len(sys.argv) < 7:
@@ -26,8 +29,11 @@ MINUTES = int(sys.argv[4])
 CERT = sys.argv[5]
 KEY = sys.argv[6]
 MAX_BYTES = int(os.environ.get("MAID_MAX_MB", "500")) * 1024 * 1024
-CHUNK = 65536
+MAX_FILE = int(os.environ.get("MAID_MAX_FILE_MB", os.environ.get("MAID_MAX_MB", "500"))) * 1024 * 1024
+CHUNK = max(256, int(os.environ.get("MAID_RECV_CHUNK", "65536")))
 MAX_UPLOADS = 4
+FREE_MARGIN = 64 * 1024 * 1024
+MAX_HEAD = 16384
 os.makedirs(OUTDIR, exist_ok=True)
 STOP_AT = time.time() + MINUTES * 60
 
@@ -38,6 +44,126 @@ FORM = """<html><head><meta name="viewport" content="width=device-width">
 <input type="file" name="f" multiple><br><br>
 <input type="submit" value="Send">
 </form></body></html>""".encode()
+
+
+class _Body:
+    """Request body reader: CHUNK-sized reads, small rolling buffer.
+
+    stream_until() writes everything before the marker through sink(data)
+    with at most one chunk plus marker-length held in memory, so a part is
+    never assembled in RAM. It is careful to only flush bytes that cannot
+    be the start of a marker split across two reads.
+    """
+
+    def __init__(self, rfile, length):
+        self.rfile = rfile
+        self.left = length
+        self.buf = b""
+
+    def refill(self):
+        if self.left <= 0:
+            return False
+        chunk = self.rfile.read(min(CHUNK, self.left))
+        if not chunk:
+            self.left = 0
+            return False
+        self.left -= len(chunk)
+        self.buf += chunk
+        return True
+
+    def ensure(self, n):
+        while len(self.buf) < n and self.refill():
+            pass
+        return len(self.buf) >= n
+
+    def take(self, n):
+        out = self.buf[:n]
+        self.buf = self.buf[n:]
+        return out
+
+    def read_until(self, marker, cap):
+        """bytes before marker (marker consumed). None on EOF or over cap."""
+        out = bytearray()
+        while True:
+            i = self.buf.find(marker)
+            if i >= 0:
+                out += self.buf[:i]
+                self.buf = self.buf[i + len(marker):]
+                return bytes(out) if len(out) <= cap else None
+            if len(out) + len(self.buf) > cap:
+                return None
+            out += self.buf
+            self.buf = b""
+            if not self.refill():
+                return None
+
+    def stream_until(self, marker, sink, cap):
+        """Write payload before marker through sink(data), bounded RAM.
+        Returns 'ok' | 'eof' | 'over' | 'write'."""
+        seen = 0
+        keep = len(marker) - 1
+        while True:
+            i = self.buf.find(marker)
+            if i >= 0:
+                if i > 0:
+                    seen += i
+                    if seen > cap:
+                        return "over"
+                    if not sink(self.buf[:i]):
+                        return "write"
+                self.buf = self.buf[i + len(marker):]
+                return "ok"
+            safe = len(self.buf) - keep
+            if safe > 0:
+                seen += safe
+                if seen > cap:
+                    return "over"
+                if not sink(self.buf[:safe]):
+                    return "write"
+                self.buf = self.buf[safe:]
+            if not self.refill():
+                return "eof"
+
+
+def _wr(fd, data):
+    try:
+        os.write(fd, data)
+        return True
+    except OSError:
+        return False
+
+
+def _part_disp(head):
+    for line in head.split(b"\r\n"):
+        name, _, value = line.partition(b":")
+        if name.strip().lower() == b"content-disposition":
+            return value.strip()
+    return None
+
+
+def _part_filename(disp):
+    if not disp or not disp.lower().startswith(b"form-data"):
+        return None
+    key = b"filename="
+    i = disp.lower().find(key)
+    if i < 0:
+        return None
+    v = disp[i + len(key):].lstrip()
+    if v[:1] == b'"':
+        raw = bytearray()
+        j = 1
+        while j < len(v):
+            c = v[j:j + 1]
+            if c == b"\\" and j + 1 < len(v):
+                raw += v[j + 1:j + 2]
+                j += 2
+                continue
+            if c == b'"':
+                break
+            raw += c
+            j += 1
+        return bytes(raw).decode("utf-8", "replace")
+    return v.split(b";", 1)[0].strip().decode("utf-8", "replace")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -60,6 +186,12 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"nope")
 
+    def _fail(self, code, msg):
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(msg.encode())
+
     def _token_from_path(self):
         # /<token> or /<token>/upload
         parts = [p for p in self.path.split("?")[0].split("/") if p]
@@ -80,6 +212,19 @@ class Handler(BaseHTTPRequestHandler):
     def _clean(name):
         # strip control chars so hostile filenames can't spoof journal lines
         return "".join(c for c in name if c.isprintable())
+
+    @staticmethod
+    def _boundary(ctype):
+        if not ctype.lower().startswith("multipart/form-data"):
+            return None
+        for part in ctype.split(";")[1:]:
+            key, _, value = part.strip().partition("=")
+            if key.strip().lower() == "boundary":
+                value = value.strip()
+                if value[:1] == '"' and value[-1:] == '"':
+                    value = value[1:-1]
+                return value.encode("utf-8", "replace") if value else None
+        return None
 
     def do_POST(self):  # noqa: N802
         if not Handler.slots.acquire(blocking=False):
@@ -104,43 +249,76 @@ class Handler(BaseHTTPRequestHandler):
         if length <= 0 or length > MAX_BYTES:
             self._deny()
             return
-        ctype = self.headers.get("Content-Type", "")
+        boundary = self._boundary(self.headers.get("Content-Type", ""))
+        if not boundary:
+            self._deny()
+            return
         try:
-            # stream in chunks: RAM stays flat no matter the declared size
-            body = bytearray()
-            remaining = length
-            while remaining > 0:
-                chunk = self.rfile.read(min(CHUNK, remaining))
-                if not chunk:
-                    self._deny()
-                    return
-                body += chunk
-                remaining -= len(chunk)
-            msg = BytesParser(policy=HTTP).parsebytes(
-                b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + bytes(body))
-        except Exception:  # noqa: BLE001 - malformed upload, reject it
+            # refuse up front when the declared size cannot fit on disk
+            if shutil.disk_usage(OUTDIR).free < length + FREE_MARGIN:
+                self._fail(507, "not enough free disk space for this upload")
+                return
+        except OSError:
+            pass
+        body = _Body(self.rfile, length)
+        delim = b"\r\n--" + boundary
+        # leading boundary (any preamble is tolerated)
+        if body.read_until(b"--" + boundary, MAX_HEAD) is None:
             self._deny()
             return
         saved = []
         try:
-            for part in msg.iter_parts():
-                if part.get_content_disposition() != "form-data":
+            while True:
+                if not body.ensure(2):
+                    self._deny()
+                    return
+                if body.buf[:2] == b"--":
+                    break  # closing delimiter: no more parts
+                if body.buf[:2] != b"\r\n":
+                    self._deny()
+                    return
+                body.take(2)
+                head = body.read_until(b"\r\n\r\n", MAX_HEAD)
+                if head is None:
+                    self._deny()
+                    return
+                name = _part_filename(_part_disp(head))
+                store_name = os.path.basename(name) if name else ""
+                if not store_name:
+                    # plain field or hostile name: drain and skip the part
+                    if body.stream_until(delim, lambda _c: True, MAX_FILE) != "ok":
+                        self._deny()
+                        return
                     continue
-                name = os.path.basename(part.get_filename() or "")
-                if not name:
-                    continue
-                data = part.get_payload(decode=True) or b""
-                dest = self._store(name, data)
-                if dest:
-                    saved.append(dest)
-                    print(f"SAVED {self._clean(dest)}", flush=True)
+                fd, base = self._open_dest(store_name)
+                if fd is None:
+                    self._deny()
+                    return
+                res = body.stream_until(delim, lambda c, fd=fd: _wr(fd, c), MAX_FILE)
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                if res != "ok":
+                    # no partial files: remove what this request started
+                    try:
+                        os.unlink(os.path.join(OUTDIR, base))
+                    except OSError:
+                        pass
+                    if res == "over":
+                        self._fail(413, "file over MAID_MAX_FILE_MB")
+                    else:
+                        self._deny()
+                    return
+                saved.append(base)
+                print(f"SAVED {self._clean(base)}", flush=True)
         except Exception:  # noqa: BLE001 - never leak tracebacks for uploads
             self._deny()
             return
         self._ok("text/plain", ("saved: " + ", ".join(saved) + "\n").encode())
 
     @staticmethod
-    def _store(name, data):
+    def _open_dest(name):
         # atomic create (O_EXCL): concurrent same-name uploads can't clobber
         base, ext = os.path.splitext(os.path.join(OUTDIR, name))
         for n in range(1, 1000):
@@ -150,14 +328,9 @@ class Handler(BaseHTTPRequestHandler):
             except FileExistsError:
                 continue
             except OSError:
-                return ""
-            try:
-                with os.fdopen(fd, "wb") as f:
-                    f.write(data)
-                return os.path.basename(dest)
-            except OSError:
-                return ""
-        return ""
+                return None, ""
+            return fd, os.path.basename(dest)
+        return None, ""
 
 
 srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)

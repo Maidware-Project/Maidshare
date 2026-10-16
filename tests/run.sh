@@ -114,6 +114,62 @@ done
 rm -rf /tmp/ms-dl2 /tmp/ms-big.bin /tmp/ms-cap.txt
 ok "receive size cap configurable"
 
+echo "== receive: disk streaming + per-file cap =="
+rm -rf /tmp/ms-dl3 && mkdir -p /tmp/ms-dl3
+MAID_HTTP_PORT=8080 MAID_RECV_CHUNK=1024 MAID_MAX_FILE_MB=1 XDG_DOWNLOAD_DIR=/tmp/ms-dl3 \
+  bash "$PKGDIR/bin/maidshare" --receive --time 1 >/tmp/ms-stream.txt 2>&1 &
+sleep 4
+RS=$(grep -oE "https://[0-9.]+:[0-9]+/[A-Za-z0-9_-]+" /tmp/ms-stream.txt | head -n 1)
+[ -n "$RS" ] || fail "streaming server URL missing"
+# uploads are written to disk while the body is still arriving; sweep
+# payload sizes so the closing boundary lands at every offset within a
+# 1 KiB read chunk (this is what MAID_RECV_CHUNK is for)
+python3 - "$RS/upload" /tmp/ms-dl3/MaidShare <<'EOF' || fail "boundary split uploads"
+import http.client, ssl, sys, urllib.parse
+
+url = urllib.parse.urlparse(sys.argv[1])
+outdir = sys.argv[2]
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+B = b"TESTB0UNDARY1234567890abc"
+pattern = b"assorted bytes \r\n--TESTB0UNDARY123 fire \r\n end"
+for n in range(1, 261):
+    payload = (pattern * (n // len(pattern) + 1))[:n * 4]
+    body = (b"--" + B + b"\r\n"
+            b"Content-Disposition: form-data; name=\"f\"; filename=\"edge.bin\"\r\n"
+            b"Content-Type: application/octet-stream\r\n\r\n" + payload +
+            b"\r\n--" + B + b"--\r\n")
+    conn = http.client.HTTPSConnection(url.hostname, url.port, context=ctx, timeout=20)
+    conn.request("POST", url.path, body=body, headers={
+        "Content-Type": "multipart/form-data; boundary=" + B.decode(),
+        "Content-Length": str(len(body))})
+    resp = conn.getresponse()
+    reply = resp.read()
+    conn.close()
+    want = b"saved: edge.bin\n" if n == 1 else b"saved: edge-%d.bin\n" % n
+    if resp.status != 200 or reply != want:
+        sys.exit("upload %d: %s %r" % (n, resp.status, reply[:80]))
+    with open(outdir + ("/edge.bin" if n == 1 else "/edge-%d.bin" % n), "rb") as f:
+        if f.read() != payload:
+            sys.exit("upload %d: stored bytes differ" % n)
+print("boundary offsets ok: 260")
+EOF
+# per-file cap: 2 MB over a 1 MB MAID_MAX_FILE_MB is rejected, nothing partial stays
+head -c 2000000 /dev/urandom > /tmp/ms-big3.bin
+[ "$(curl -sk -o /dev/null -w "%{http_code}" -F "f=@/tmp/ms-big3.bin" "$RS/upload")" = "413" ] || fail "per-file cap not enforced"
+[ -e /tmp/ms-dl3/MaidShare/ms-big3.bin ] && fail "partial file left after cap reject"
+# two files in one request still land intact
+printf 'one' > /tmp/ms-m1.txt; printf 'two' > /tmp/ms-m2.txt
+[ "$(curl -sk -F "f=@/tmp/ms-m1.txt" -F "f=@/tmp/ms-m2.txt" "$RS/upload")" = "saved: ms-m1.txt, ms-m2.txt" ] || fail "multi-file single request"
+[ "$(cat /tmp/ms-dl3/MaidShare/ms-m1.txt)" = "one" ] || fail "multi-file content 1"
+[ "$(cat /tmp/ms-dl3/MaidShare/ms-m2.txt)" = "two" ] || fail "multi-file content 2"
+for p in $(pgrep -f "maidshare-receive.py"); do
+  [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
+done
+rm -rf /tmp/ms-dl3 /tmp/ms-stream.txt /tmp/ms-big3.bin /tmp/ms-m1.txt /tmp/ms-m2.txt
+ok "receive streams to disk, per-file cap, multi-file"
+
 echo "== cleanup =="
 for p in $(pgrep -f "maidshare-receive.py"); do
   [ "$p" != "$$" ] && [ "$p" != "$PPID" ] && kill "$p" 2>/dev/null || true
