@@ -92,6 +92,13 @@ warning - that's expected: compare the fingerprint in your terminal
 with the one the browser shows, then proceed. token + expiry still
 apply on top.
 
+uploads are streamed straight to disk as they arrive, so even a huge
+file costs almost no memory. caps: `MAID_MAX_MB` per request (default
+500), `MAID_MAX_FILE_MB` per file (default: the request cap), four
+uploads at once (extra ones get 503), and the server refuses an
+upload up front when free disk space is too tight. rejected or
+interrupted uploads leave no partial file behind.
+
 ## if it doesn't work
 
 phone can't reach the page? that's your firewall, not the script - it
