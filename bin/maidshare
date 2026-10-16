@@ -9,10 +9,24 @@
 set -u
 BINDIR="$(cd "$(dirname "$0")" && pwd)"
 
+usage() {
+  echo "usage: maidshare [--via kdeconnect|adb|http] [--device ID] [--adb TARGET] [FILE|URL]..." >&2
+  echo "       maidshare --receive [--time MIN]" >&2
+}
+
 VIA=""
-if [ "${1:-}" = "--via" ]; then VIA="${2:-}"; shift 2 || true; fi
-if [ "${1:-}" = "--device" ]; then MAID_DEVICE="${2:-}"; shift 2 || true; export MAID_DEVICE; fi
-if [ "${1:-}" = "--adb" ]; then MAID_ADB="${2:-}"; shift 2 || true; export MAID_ADB; fi
+if [ "${1:-}" = "--via" ]; then
+  VIA="${2:-}"; [ -n "$VIA" ] || { usage; exit 2; }
+  shift 2
+fi
+if [ "${1:-}" = "--device" ]; then
+  MAID_DEVICE="${2:-}"; [ -n "$MAID_DEVICE" ] || { usage; exit 2; }
+  shift 2; export MAID_DEVICE
+fi
+if [ "${1:-}" = "--adb" ]; then
+  MAID_ADB="${2:-}"; [ -n "$MAID_ADB" ] || { usage; exit 2; }
+  shift 2; export MAID_ADB
+fi
 
 popup() {
   if command -v kdialog >/dev/null 2>&1; then
@@ -51,9 +65,10 @@ do_receive() {
   # fingerprint with the browser's certificate warning).
   local mins="${SERVE_MIN:-10}" port="${MAID_HTTP_PORT:-8078}"
   if [ "${1:-}" = "--time" ]; then mins="${2:-10}"; shift 2 || true; fi
+  command -v python3 >/dev/null 2>&1 || { sorry "Need python3 for receive mode."; return 1; }
   local outdir="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}/MaidShare"
   mkdir -p "$outdir"
-  local token lan url fp certdir before after
+  local token lan url fp certdir before after rc
   # shellcheck disable=SC1090
   . "$BINDIR/maid-cert.sh"
   certdir=$(mktemp -d -t maidshare-cert-XXXXXX) || { sorry "No temp dir. Is /tmp writable?"; return 1; }
@@ -71,9 +86,15 @@ do_receive() {
   echo "MaidShare receive at $url -> $outdir (${mins} min, Ctrl-C stops)"
   echo "cert fingerprint (compare with the browser warning): $fp"
   before=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
-  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" "$certdir/cert.pem" "$certdir/key.pem" 2>/dev/null || true
+  rc=0
+  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" "$certdir/cert.pem" "$certdir/key.pem" || rc=$?
   rm -rf "$certdir"
   trap - EXIT INT TERM
+  # 128+ is a signalled stop (Ctrl-C), not a server failure
+  if [ "$rc" -ne 0 ] && [ "$rc" -lt 128 ]; then
+    sorry "Receive server failed (exit $rc) - see the output above."
+    return 1
+  fi
   after=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
   if [ "$before" != "$after" ]; then
     popup "Received files are in $outdir"
