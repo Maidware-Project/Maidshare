@@ -25,3 +25,9 @@ maidshare ...
 ## Firewall (for http/receive issues)
 
 - [ ] I checked the firewall command it printed
+
+<!-- attaching logs/screenshots is mandatory if they exist. -->
+
+---
+
+**note:** before filing, please read `AGENTS.md` in this repo - it's there for a reason.
