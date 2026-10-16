@@ -26,6 +26,8 @@ by Maidware Project.
   phone, no real network - and covers the upload path, name clashes,
   directory traversal, the size cap and the TLS/key handling.
 - `bash install.sh --check` writes nothing
+- CI must be green before review - a green run on your machine is the
+  start, not the finish
 - touched the receive side? say what you actually exercised: a real phone,
   `curl`, or the suite alone
 - no personal data anywhere (MACs, names, IPs, home paths). the suite
@@ -40,6 +42,10 @@ answer.
 you need basic linux: the terminal, file permissions, what sudo does,
 where configs live (~/.config). this repo moves files over a network, so
 guessing isn't contributing.
+
+reviewers here are people, not bots: expect to answer questions about your
+patch, and don't open one you can't back up. unattended drive-by or bot
+PRs get closed.
 
 ## issues
 
