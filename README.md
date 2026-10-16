@@ -1,4 +1,4 @@
-# maidshare - send files and links from linux to android
+# Maidshare - send files and links from linux to android
 
 command-line helper. sends files or links to android. picks kde connect first, then usb/adb, then a temporary wifi page. can receive files back from your phone. no phone app needed. override with `--via`.
 
