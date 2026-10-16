@@ -61,7 +61,7 @@ copy_one() {
 }
 
 copy_one "$PKGDIR/bin/maidshare" "$HOME/.local/bin/maidshare"
-mkdir -p "$HOME/.local/bin/backends"
+[ "$CHECK" = "1" ] || mkdir -p "$HOME/.local/bin/backends"
 for f in "$PKGDIR"/bin/backends/*.sh; do
   [ -f "$f" ] || continue
   copy_one "$f" "$HOME/.local/bin/backends/$(basename "$f")"

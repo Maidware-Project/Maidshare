@@ -8,6 +8,8 @@
 # No directory listings - only exact file paths under the secret subdir.
 # Provides: backend_available, backend_send. Uses popup()/sorry() from dispatcher.
 SERVE_MIN="${SERVE_MIN:-10}"
+# sleep's arithmetic needs a number; anything else falls back to the default
+[[ "${SERVE_MIN:-10}" =~ ^[0-9]+$ ]] || SERVE_MIN=10
 PORT="${MAID_HTTP_PORT:-8077}"
 
 backend_available() { command -v python3 >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; }
