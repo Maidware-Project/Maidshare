@@ -26,7 +26,7 @@ backend_send() {
   # under $dir, so key.pem/cert.pem must never be under it.
   certdir=$(mktemp -d -t maidshare-cert-XXXXXX) || { rm -rf "$dir"; return 1; }
   fp=$(maid_cert "$certdir") || { rm -rf "$dir" "$certdir"; sorry "Need the openssl CLI for the encrypted link."; return 1; }
-  sub=$(python3 -c "import secrets; print(secrets.token_hex(6))")
+  sub=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
   mkdir -p "$dir/$sub" || { rm -rf "$dir"; return 1; }
   for f in "$@"; do
     case "$f" in

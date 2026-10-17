@@ -1,5 +1,12 @@
 # changelog
 
+## stronger send-side token
+
+- the http send backend's secret path now uses the same 128-bit
+  url-safe token as receive (`secrets.token_urlsafe(16)`), replacing
+  six random bytes (48 bits). same flow and expiry, just harder to
+  guess on a busy lan.
+
 ## receive: uploads go straight to disk
 
 - the receive server no longer collects the request body in memory:
