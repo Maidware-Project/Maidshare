@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=MaidShare
 Comment=Send files and links to your Android phone
-Exec=/home/EXAMPLEUSER/.local/bin/maidshare
+Exec=@HOME@/.local/bin/maidshare
 Icon=kdeconnect
 Terminal=false
 Type=Application

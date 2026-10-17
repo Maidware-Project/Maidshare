@@ -53,7 +53,7 @@ copy_one() {
   fi
   if [ "$rewrite" = "1" ]; then
     # escape & (sed replacement metachar) in $HOME
-    sed -e "s|/home/EXAMPLEUSER/|${HOME//&/\\&}|g" "$src" > "$dest"
+    sed -e "s|@HOME@|${HOME//&/\\&}|g" "$src" > "$dest"
   else
     cp -a "$src" "$dest"
   fi
