@@ -3,27 +3,42 @@
 # Backends are optional and auto-detected at runtime - install any of:
 #   KDE Connect (kdeconnect-cli) / ADB (android-tools) / python3 + qrencode.
 # Usage: ./install.sh [--check] [--uninstall [--purge]]
+#          [--prefix=DIR] [--no-packages] [--no-config]
+# --prefix installs program files elsewhere (packaging: DESTDIR supported);
+# user setup is skipped for non-default prefixes and with --no-config.
 set -u
 PKGDIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
-CHECK=0; UNINST=0; PURGE=0
+CHECK=0; UNINST=0; PURGE=0; NOCONFIG=0; PREFIX=""
 for a in "$@"; do
   case "$a" in
     --check) CHECK=1 ;;
     --uninstall) UNINST=1 ;;
     --purge) PURGE=1 ;;
-    *) echo "unknown option: $a (see: --check --uninstall [--purge])" >&2; exit 2 ;;
+    --no-config) NOCONFIG=1 ;;
+    --no-packages) ;; # accepted for packaging/consistency: Maidshare installs no packages
+    --prefix=*) PREFIX="${a#--prefix=}" ;;
+    *) echo "unknown option: $a (see header)" >&2; exit 2 ;;
   esac
 done
+if [ -z "$PREFIX" ]; then PREFIX="$HOME/.local"; fi
+if [ "$PREFIX" = "$HOME/.local" ]; then
+  BINDIR="$HOME/.local/bin"; SHAREDIR="$HOME/.local/share"; REWRITE=1
+else
+  BINDIR="${DESTDIR:-}$PREFIX/bin"; SHAREDIR="${DESTDIR:-}$PREFIX/share"; REWRITE=2
+  NOCONFIG=1
+fi
 
 say()  { echo "==> $*"; }
 
 if [ "$UNINST" = "1" ]; then
-  rm -f "$HOME"/.local/bin/maidshare "$HOME"/.local/bin/maidshare-receive.py \
-    "$HOME"/.local/bin/maid-cert.sh
-  rm -rf "$HOME"/.local/bin/backends
-  rm -f "$HOME"/.local/share/applications/maidshare.desktop \
-    "$HOME"/.local/share/kio/servicemenus/maidshare.desktop
+  # program files come out of the same dirs the install used, so
+  # --prefix/DESTDIR installs uninstall cleanly too.
+  rm -f "$BINDIR"/maidshare "$BINDIR"/maidshare-receive.py \
+    "$BINDIR"/maid-cert.sh
+  rm -rf "$BINDIR"/backends
+  rm -f "$SHAREDIR"/applications/maidshare.desktop \
+    "$SHAREDIR"/kio/servicemenus/maidshare.desktop
   if [ "$PURGE" = "1" ]; then
     rm -f "$HOME"/.config/kdeconnect-share-target
     rm -rf "$HOME/Downloads/MaidShare"
@@ -54,29 +69,34 @@ copy_one() {
   if [ "$rewrite" = "1" ]; then
     # escape & (sed replacement metachar) in $HOME
     sed -e "s|@HOME@|${HOME//&/\\&}|g" "$src" > "$dest"
+  elif [ "$rewrite" = "2" ]; then
+    # system package: bare command names, resolved via PATH
+    sed -e "s|@HOME@||g" -e "s|/.local/bin/||g" "$src" > "$dest"
   else
     cp -a "$src" "$dest"
   fi
   echo "installed $dest"
 }
 
-copy_one "$PKGDIR/bin/maidshare" "$HOME/.local/bin/maidshare"
-[ "$CHECK" = "1" ] || mkdir -p "$HOME/.local/bin/backends"
+copy_one "$PKGDIR/bin/maidshare" "$BINDIR/maidshare"
+[ "$CHECK" = "1" ] || mkdir -p "$BINDIR/backends"
 for f in "$PKGDIR"/bin/backends/*.sh; do
   [ -f "$f" ] || continue
-  copy_one "$f" "$HOME/.local/bin/backends/$(basename "$f")"
+  copy_one "$f" "$BINDIR/backends/$(basename "$f")"
 done
-[ "$CHECK" = "0" ] && chmod +x "$HOME/.local/bin/maidshare" 2>/dev/null || true
-copy_one "$PKGDIR/bin/maidshare-receive.py" "$HOME/.local/bin/maidshare-receive.py"
-copy_one "$PKGDIR/bin/maid-cert.sh" "$HOME/.local/bin/maid-cert.sh"
+[ "$CHECK" = "0" ] && chmod +x "$BINDIR/maidshare" 2>/dev/null || true
+copy_one "$PKGDIR/bin/maidshare-receive.py" "$BINDIR/maidshare-receive.py"
+copy_one "$PKGDIR/bin/maid-cert.sh" "$BINDIR/maid-cert.sh"
 copy_one "$PKGDIR/desktop/maidshare.desktop" \
-  "$HOME/.local/share/applications/maidshare.desktop" 1
+  "$SHAREDIR/applications/maidshare.desktop" "$REWRITE"
 copy_one "$PKGDIR/servicemenu/maidshare.desktop" \
-  "$HOME/.local/share/kio/servicemenus/maidshare.desktop"
+  "$SHAREDIR/kio/servicemenus/maidshare.desktop"
 
 if [ "$CHECK" = "1" ]; then say "(check only, nothing changed)"; exit 0; fi
-command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
-command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+if [ "$NOCONFIG" = "0" ]; then
+  command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
+  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$SHAREDIR/applications" >/dev/null 2>&1 || true
+fi
 
 say "backend status on this machine:"
 command -v kdeconnect-cli >/dev/null 2>&1 && say "  kdeconnect: yes" || say "  kdeconnect: MISSING (best backend - install your distro's kdeconnect package)"
