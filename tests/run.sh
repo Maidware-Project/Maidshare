@@ -16,8 +16,8 @@ command -v shellcheck >/dev/null 2>&1 && shellcheck -S error "$PKGDIR"/bin/maids
 ok "syntax"
 
 echo "== personal data =="
-if grep -rn --exclude-dir=__pycache__ -iE "90:BF|SmartAction|soundcore|Liberty|Mothership|10\.0\.0|/home/visa" \
-    "$PKGDIR/bin" "$PKGDIR/README.md" "$PKGDIR/install.sh" 2>/dev/null | grep -v "s|/home/visa|"; then
+if grep -rn --exclude-dir=__pycache__ -iE "90:BF|SmartAction|soundcore|Liberty|Mothership|10\.0\.0|/(home|Users)/[^/[:space:]]+" \
+    "$PKGDIR/bin" "$PKGDIR/desktop" "$PKGDIR/servicemenu" "$PKGDIR/README.md" "$PKGDIR/install.sh" 2>/dev/null; then
   fail "personal string leaked"
 fi
 ok "no personal data"
