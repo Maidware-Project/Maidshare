@@ -2,8 +2,8 @@
 
 small, reviewable changes only - one logical change per pull request. if
 your description is turning into a story, it's probably two patches. read
-AGENTS.md first; it applies to humans and AI assistants alike. maintained
-by Maidware Project.
+README.md first; it covers what the project is and how it
+builds. maintained by Maidware Project.
 
 ## commits
 
@@ -32,8 +32,8 @@ by Maidware Project.
 
 ## know your patch
 
-understand every line you send, assistant-written parts included. if you
-can't say what a line does, drop it - "the assistant wrote it" is not an
+understand every line you send. if you can't
+say what a line does, drop it - "i didn't write it" is not an
 answer.
 
 you need basic linux: the terminal, file permissions, what sudo does,
