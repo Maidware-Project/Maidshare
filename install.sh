@@ -39,6 +39,7 @@ if [ "$UNINST" = "1" ]; then
   rm -rf "$BINDIR"/backends
   rm -f "$SHAREDIR"/applications/maidshare.desktop \
     "$SHAREDIR"/kio/servicemenus/maidshare.desktop
+  rm -rf "$SHAREDIR"/maidshare
   if [ "$PURGE" = "1" ]; then
     rm -f "$HOME"/.config/kdeconnect-share-target
     rm -rf "$HOME/Downloads/MaidShare"
@@ -91,6 +92,13 @@ copy_one "$PKGDIR/desktop/maidshare.desktop" \
   "$SHAREDIR/applications/maidshare.desktop" "$REWRITE"
 copy_one "$PKGDIR/servicemenu/maidshare.desktop" \
   "$SHAREDIR/kio/servicemenus/maidshare.desktop"
+
+# the kdeconnect early-login fix (kernel 7.2.11 / Plasma 6.8) travels
+# with the suite: ~/.local/share/maidshare/patches/kdeconnect-26.08.2/
+for f in "$PKGDIR"/patches/kdeconnect-26.08.2/*; do
+  [ -f "$f" ] || continue
+  copy_one "$f" "$SHAREDIR/maidshare/patches/kdeconnect-26.08.2/$(basename "$f")"
+done
 
 if [ "$CHECK" = "1" ]; then say "(check only, nothing changed)"; exit 0; fi
 if [ "$NOCONFIG" = "0" ]; then
