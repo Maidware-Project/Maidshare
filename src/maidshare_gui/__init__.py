@@ -1,0 +1,1 @@
+"""Maidshare GUI: the window for the same CLI the right-click menu uses."""

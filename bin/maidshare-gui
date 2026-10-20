@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Maidshare GUI entry: the Qt window around the maidshare CLI. Needs
+# PyQt6 + a display; the CLI itself (bin/maidshare) has no such
+# requirements and stays the thing the right-click menu runs.
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+PKG="$HERE/../lib/maidshare-gui"
+
+has_display() { [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; }
+has_pyqt() { python3 -c "import PyQt6" 2>/dev/null; }
+
+if [ -d "$PKG" ] && has_pyqt && has_display; then
+  PYTHONPATH="$PKG" exec python3 -m maidshare_gui "$@"
+fi
+
+if [ ! -d "$PKG" ]; then
+  echo "Maidshare GUI: package missing under $PKG (reinstall with install.sh)." >&2
+elif ! has_pyqt; then
+  echo "Maidshare GUI needs PyQt6 (install python3-pyqt6)." >&2
+else
+  echo "Maidshare GUI needs a display (Wayland or X11)." >&2
+fi
+echo "the CLI still works without the window: maidshare [FILE...]" >&2
+exit 2

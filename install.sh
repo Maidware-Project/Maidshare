@@ -23,9 +23,9 @@ for a in "$@"; do
 done
 if [ -z "$PREFIX" ]; then PREFIX="$HOME/.local"; fi
 if [ "$PREFIX" = "$HOME/.local" ]; then
-  BINDIR="$HOME/.local/bin"; SHAREDIR="$HOME/.local/share"; REWRITE=1
+  BINDIR="$HOME/.local/bin"; LIBDIR="$HOME/.local/lib"; SHAREDIR="$HOME/.local/share"; REWRITE=1
 else
-  BINDIR="${DESTDIR:-}$PREFIX/bin"; SHAREDIR="${DESTDIR:-}$PREFIX/share"; REWRITE=2
+  BINDIR="${DESTDIR:-}$PREFIX/bin"; LIBDIR="${DESTDIR:-}$PREFIX/lib"; SHAREDIR="${DESTDIR:-}$PREFIX/share"; REWRITE=2
   NOCONFIG=1
 fi
 
@@ -65,9 +65,10 @@ if [ "$UNINST" = "1" ]; then
   # program files come out of the same dirs the install used, so
   # --prefix/DESTDIR installs uninstall cleanly too.
   rm -f "$BINDIR"/maidshare "$BINDIR"/maidshare-receive.py \
-    "$BINDIR"/maid-cert.sh
-  rm -rf "$BINDIR"/backends
+    "$BINDIR"/maid-cert.sh "$BINDIR"/maidshare-gui
+  rm -rf "$BINDIR"/backends "$LIBDIR"/maidshare-gui
   rm -f "$SHAREDIR"/applications/maidshare.desktop \
+    "$SHAREDIR"/applications/maidshare-gui.desktop \
     "$SHAREDIR"/kio/servicemenus/maidshare.desktop
   rm -rf "$SHAREDIR"/maidshare
   if [ "$PURGE" = "1" ]; then
@@ -118,6 +119,16 @@ done
 [ "$CHECK" = "0" ] && chmod +x "$BINDIR/maidshare" 2>/dev/null || true
 copy_one "$PKGDIR/bin/maidshare-receive.py" "$BINDIR/maidshare-receive.py"
 copy_one "$PKGDIR/bin/maid-cert.sh" "$BINDIR/maid-cert.sh"
+# GUI: the wrapper resolves its Qt package via ../lib/maidshare-gui
+copy_one "$PKGDIR/bin/maidshare-gui" "$BINDIR/maidshare-gui"
+[ "$CHECK" = "1" ] || mkdir -p "$LIBDIR/maidshare-gui"
+cd "$PKGDIR/src" || { say "missing src tree: $PKGDIR/src"; exit 1; }
+while IFS= read -r -d '' f; do
+  copy_one "$PKGDIR/src/$f" "$LIBDIR/maidshare-gui/$f"
+done < <(find maidshare_gui -name "*.py" -print0)
+cd "$PKGDIR"
+copy_one "$PKGDIR/desktop/maidshare-gui.desktop" \
+  "$SHAREDIR/applications/maidshare-gui.desktop" "$REWRITE"
 copy_one "$PKGDIR/desktop/maidshare.desktop" \
   "$SHAREDIR/applications/maidshare.desktop" "$REWRITE"
 copy_one "$PKGDIR/servicemenu/maidshare.desktop" \
@@ -140,4 +151,6 @@ command -v adb >/dev/null 2>&1 && say "  adb: yes" || say "  adb: missing (optio
 command -v python3 >/dev/null 2>&1 && say "  python3: yes (http backend)" || say "  python3: MISSING"
 command -v openssl >/dev/null 2>&1 && say "  openssl: yes (https for http backend)" || say "  openssl: MISSING (http backend stays off without it)"
 command -v qrencode >/dev/null 2>&1 && say "  qrencode: yes (terminal QR)" || say "  qrencode: missing (optional; URL still works)"
-say "done. Pin it: launcher -> MaidShare -> Pin to Task Manager."
+python3 -c "import PyQt6" 2>/dev/null && say "  PyQt6: yes (GUI)" \
+  || say "  PyQt6: missing (optional; the GUI window stays off, the CLI works fully)"
+say "done. Pin it: launcher -> MaidShare GUI -> Pin to Task Manager."

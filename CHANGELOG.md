@@ -1,5 +1,24 @@
 # changelog
 
+## the window (maidshare-gui)
+
+- new optional Qt window around the existing CLI: a **send** tab (drag
+  in files or links, pick or force the backend, watch the CLI's
+  output) and a **receive** tab (starts the listen, shows the QR, the
+  token URL with a copy button, and the cert fingerprint the browser
+  warning shows). closing the window or pressing stop ends the server.
+- no new machinery: every action is one `maidshare` run - the right
+  click menu, the terminal and the window all do the same job with one
+  brain. PyQt6 only for the window, everything else unchanged.
+- follows the suite's Maid Scroll palette state (same six palettes,
+  same one-line state file as Maid Runner), so the maid windows stay
+  one family.
+- `--screenshot PATH` renders the window offscreen for docs - demo
+  rows and a reserved-test IP only, nothing personal passes through.
+- installer: copies `bin/maidshare-gui` + `lib/maidshare-gui/`, adds
+  the launcher entry, reports PyQt6 like the other backends, and
+  uninstalls cleanly (`--uninstall [--purge]` unchanged behaviour).
+
 ## kdeconnectd early-login fix moved to Maid Helper
 
 - the version-specific patch no longer travels in this repo. Maid

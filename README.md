@@ -2,12 +2,15 @@
 
 command-line helper. sends files or links to android. picks kde connect first, then usb/adb, then a temporary wifi page. can receive files back from your phone. no phone app needed. override with `--via`.
 
+there's also a window: `maidshare-gui` (optional, needs `python3-pyqt6`) does both directions — files, backend pick, and the receive QR — without touching a terminal.
+
 ## quick start
 
 ```sh
 bash install.sh            # copy + icon, reports which backends work
 maidshare file.pdf         # picks KDE Connect, ADB, or wifi page for you
 maidshare --receive        # phone uploads to your PC via QR + browser
+maidshare-gui              # the window: drag files in, or scan the receive QR
 ```
 
 ## why not just KDE Connect / LocalSend / Snapdrop?
@@ -30,6 +33,8 @@ bin/backends/backend-kdeconnect.sh   paired phone on LAN (files + URLs)
 bin/backends/backend-adb.sh          ADB push to /sdcard/Download (files)
 bin/backends/backend-http.sh         throwaway LAN server + QR (files, zero setup)
 bin/maidshare-receive.py  phone -> PC browser upload (token URL, auto-expires)
+bin/maidshare-gui      window launcher (Qt around the same CLI, optional)
+src/maidshare_gui/     the window itself (send list + receive QR)
 desktop/              launcher icon (pin to task manager)
 servicemenu/          dolphin right-click entries (send / send-via-QR)
 install.sh            installer (copies, never symlinks)
@@ -44,6 +49,7 @@ backends are optional and auto-detected - install any of them:
 | kdeconnect backend | kdeconnect | kdeconnect | kdeconnect | kdeconnect-kde |
 | adb backend | android-tools | adb | android-tools | android-tools |
 | http backend | python + openssl + qrencode (opt) | python3 + openssl + qrencode | python3 + openssl + qrencode | python3 + openssl + qrencode |
+| gui window (opt) | pyqt6 | python3-pyqt6 | python3-pyqt6 | python313-PyQt6 |
 | picker/popups | kdialog or zenity | kdialog or zenity | kdialog or zenity | kdialog or zenity |
 
 no services here - everything runs on demand when you click it or scan
@@ -58,7 +64,7 @@ bash install.sh --check    # dry run
 
 existing files are backed up to `*.bak-<timestamp>`. install.sh downloads
 nothing - every dependency comes from your distro repos. then: launcher →
-**MaidShare** (pin to task manager for one click).
+**MaidShare GUI** (pin to task manager for one click).
 
 ## usage
 
@@ -79,6 +85,18 @@ even `|` are sent intact.
 setup shortcuts: pin one phone with
 `echo '<id>' > ~/.config/kdeconnect-share-target`
 (`kdeconnect-cli -l` lists ids). USB target: `--adb` or `$MAID_ADB`.
+
+### the window
+
+`maidshare-gui` wraps the same CLI — same backends, same files land in
+the same place. the **send** tab keeps a list (drag files or links in),
+picks a backend or forces one, and streams the CLI's output as it runs.
+the **receive** tab starts the listen, draws the QR, shows the token URL
+with a copy button and the cert fingerprint to compare against the
+browser warning; stopping the listen (or closing the window) stops the
+server. it follows the suite's six Maid Scroll palettes from
+`~/.config/maid-scroll/`, so it looks like the rest of the maid windows
+and rhymes with the runner.
 
 two ways to use it: right-click any file(s) in dolphin →
 **Send to phone (MaidShare)** (or Send via QR). other direction needs

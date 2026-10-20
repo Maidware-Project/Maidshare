@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=MaidShare GUI
+Comment=Send and receive with your phone - the window for Maidshare
+Exec=@HOME@/.local/bin/maidshare-gui
+Icon=kdeconnect
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;
+Keywords=share;receive;qr;phone;android;maidshare;
+NoDisplay=false

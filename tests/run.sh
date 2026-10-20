@@ -8,16 +8,17 @@ ok()   { PASS=$((PASS+1)); echo "ok $PASS - $1"; }
 fail() { echo "NOT OK - $1"; exit 1; }
 
 echo "== syntax =="
-for f in "$PKGDIR"/bin/maidshare "$PKGDIR"/bin/maid-cert.sh "$PKGDIR"/bin/backends/*.sh "$PKGDIR"/install.sh; do
+for f in "$PKGDIR"/bin/maidshare "$PKGDIR"/bin/maid-cert.sh "$PKGDIR"/bin/backends/*.sh "$PKGDIR"/install.sh "$PKGDIR"/bin/maidshare-gui; do
   bash -n "$f" || fail "bash -n $f"
 done
 python3 -m py_compile "$PKGDIR/bin/maidshare-receive.py" || fail "py_compile receive"
+python3 -m py_compile "$PKGDIR"/src/maidshare_gui/app.py "$PKGDIR"/src/maidshare_gui/palettes.py || fail "py_compile gui"
 command -v shellcheck >/dev/null 2>&1 && shellcheck -S error "$PKGDIR"/bin/maidshare "$PKGDIR"/bin/maid-cert.sh "$PKGDIR"/bin/backends/*.sh "$PKGDIR"/install.sh || true
 ok "syntax"
 
 echo "== personal data =="
 if grep -rn --exclude-dir=__pycache__ -iE "([0-9a-f]{2}:){5}[0-9a-f]{2}|/(home|Users)/[^/[:space:]]+|(10|192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.[0-9]{1,3}\.[0-9]{1,3}" \
-    "$PKGDIR/bin" "$PKGDIR/desktop" "$PKGDIR/servicemenu" "$PKGDIR/README.md" "$PKGDIR/install.sh" 2>/dev/null \
+    "$PKGDIR/bin" "$PKGDIR/desktop" "$PKGDIR/servicemenu" "$PKGDIR/README.md" "$PKGDIR/install.sh" "$PKGDIR/src" 2>/dev/null \
     | grep -v "AA:BB:CC:DD:EE:FF"; then
   fail "personal string leaked"
 fi
@@ -170,6 +171,47 @@ for p in $(pgrep -f "maidshare-receive.py"); do
 done
 rm -rf /tmp/ms-dl3 /tmp/ms-stream.txt /tmp/ms-big3.bin /tmp/ms-m1.txt /tmp/ms-m2.txt
 ok "receive streams to disk, per-file cap, multi-file"
+
+echo "== gui =="
+if python3 -c "import PyQt6" 2>/dev/null; then
+  QT_QPA_PLATFORM=offscreen PYTHONPATH="$PKGDIR/src" python3 - "$PKGDIR" <<'EOF' || fail "gui window build"
+import os, sys
+
+from PyQt6.QtWidgets import QApplication, QTabWidget
+
+from maidshare_gui.app import (build_window, parse_receive_output,
+                               send_args)
+
+pkg = sys.argv[1]
+cli = os.path.join(pkg, "bin", "maidshare")
+app = QApplication([])
+win = build_window(cli)
+tabs = win.findChild(QTabWidget)
+assert tabs and tabs.count() == 2, "window should have send + receive tabs"
+assert cli in send_args(cli, ["a.txt"], via="auto")
+assert ["--via", "http"] == send_args("m", ["a"], via="http")[1:3]
+text = ("MaidShare receive at https://192.0.2.7:8078/abc -> "
+        "/home/demo/Downloads/MaidShare (10 min, Ctrl-C stops)\n\n"
+        "cert fingerprint (compare with the browser warning): "
+        "aa2f:bb33:dead:beef:1111:2222:3333:4444\n")
+url, outdir, mins, fp = parse_receive_output(text)
+assert url and outdir and mins == 10 and fp, parse_receive_output(text)
+assert parse_receive_output("nothing here") == (None, None, None, None)
+print("gui build ok")
+EOF
+  ok "gui window builds (send + receive tabs, argv builder, receive parser)"
+  rm -rf "${TMPDIR:-/tmp}/ms-gui-shot.png"
+  QT_QPA_PLATFORM=offscreen PYTHONPATH="$PKGDIR/src" \
+    python3 -m maidshare_gui --screenshot "${TMPDIR:-/tmp}/ms-gui-shot.png" \
+    >/dev/null 2>&1 || fail "gui screenshot run"
+  [ -s "${TMPDIR:-/tmp}/ms-gui-shot.png" ] || fail "gui screenshot empty"
+  file "${TMPDIR:-/tmp}/ms-gui-shot.png" | grep -qi "PNG image data" \
+    || fail "gui screenshot not a PNG"
+  rm -f "${TMPDIR:-/tmp}/ms-gui-shot.png"
+  ok "gui --screenshot renders a PNG without a display"
+else
+  ok "gui tests skipped (PyQt6 not installed; the CLI still runs)"
+fi
 
 echo "== cleanup =="
 for p in $(pgrep -f "maidshare-receive.py"); do
