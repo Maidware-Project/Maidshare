@@ -93,12 +93,8 @@ copy_one "$PKGDIR/desktop/maidshare.desktop" \
 copy_one "$PKGDIR/servicemenu/maidshare.desktop" \
   "$SHAREDIR/kio/servicemenus/maidshare.desktop"
 
-# the kdeconnect early-login fix (kernel 7.2.11 / Plasma 6.8) travels
-# with the suite: ~/.local/share/maidshare/patches/kdeconnect-26.08.2/
-for f in "$PKGDIR"/patches/kdeconnect-26.08.2/*; do
-  [ -f "$f" ] || continue
-  copy_one "$f" "$SHAREDIR/maidshare/patches/kdeconnect-26.08.2/$(basename "$f")"
-done
+# the kdeconnect early-login fix lives in Maid Helper's `kdeconnect`
+# doctor (maid-helper --only kdeconnect --fix); it is not shipped here.
 
 if [ "$CHECK" = "1" ]; then say "(check only, nothing changed)"; exit 0; fi
 if [ "$NOCONFIG" = "0" ]; then
