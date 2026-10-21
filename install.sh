@@ -97,6 +97,13 @@ copy_one() {
   if [ -e "$dest" ] && ! cmp -s "$src" "$dest"; then
     cp -a "$dest" "${dest}.bak-${BACKUP_TS}"
     say "backed up $dest"
+  elif [ -e "$dest" ]; then
+    # content identical to the shipped file: still sync the mode.
+    # cmp-equal alone kept stale modes around; a package step that
+    # once wrote 0644 left a script permanently non-executable
+    # (KDE: "Failed to resolve executable... missing executable
+    # permissions") on every later install.
+    chmod --reference="$src" "$dest" 2>/dev/null || chmod 755 "$dest"
   fi
   if [ "$rewrite" = "1" ]; then
     # escape & (sed replacement metachar) in $HOME
