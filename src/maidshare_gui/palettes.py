@@ -12,17 +12,17 @@ DEFAULT = "tokyo"
 
 PALETTES = [
     ("dark", {"bg": "#232629", "bg_alt": "#2a2e32", "fg": "#fcfcfc",
-              "muted": "#7a7e85", "accent": "#3daee9"}),
+              "muted": "#91959a", "accent": "#3daee9"}),
     ("light", {"bg": "#fcfcfc", "bg_alt": "#eff0f1", "fg": "#232629",
-               "muted": "#7f8c8d", "accent": "#3daee9"}),
+               "muted": "#636f70", "accent": "#1373a6"}),
     ("tokyo", {"bg": "#1a1b26", "bg_alt": "#24283b", "fg": "#c0caf5",
-               "muted": "#565f89", "accent": "#5cb9ae"}),
+               "muted": "#868eb3", "accent": "#5cb9ae"}),
     ("mallow", {"bg": "#121212", "bg_alt": "#1e1e1e", "fg": "#ececec",
-                "muted": "#757575", "accent": "#efa8c4"}),
+                "muted": "#858585", "accent": "#efa8c4"}),
     ("green", {"bg": "#121212", "bg_alt": "#1c1c1c", "fg": "#ececec",
-               "muted": "#7a7a7a", "accent": "#1db954"}),
+               "muted": "#848484", "accent": "#1db954"}),
     ("blue", {"bg": "#0f1419", "bg_alt": "#182028", "fg": "#e6edf3",
-              "muted": "#6e7681", "accent": "#58a6ff"}),
+              "muted": "#7f8792", "accent": "#58a6ff"}),
 ]
 
 

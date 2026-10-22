@@ -16,6 +16,35 @@ python3 -m py_compile "$PKGDIR"/src/maidshare_gui/app.py "$PKGDIR"/src/maidshare
 command -v shellcheck >/dev/null 2>&1 && shellcheck -S error "$PKGDIR"/bin/maidshare "$PKGDIR"/bin/maid-cert.sh "$PKGDIR"/bin/backends/*.sh "$PKGDIR"/install.sh || true
 ok "syntax"
 
+echo "== palette contrast =="
+PYTHONPATH="$PKGDIR/src" python3 - <<'EOF' || fail "palette contrast"
+from maidshare_gui.palettes import PALETTES
+
+def lum(h):
+    h = h.lstrip("#")
+    c = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    c = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+def ratio(a, b):
+    la, lb = lum(a), lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+bad = []
+for name, p in PALETTES:
+    for fg in ("fg", "muted", "accent"):
+        for bg in ("bg", "bg_alt"):
+            r = ratio(p[fg], p[bg])
+            if r < 4.5:
+                bad.append("%s: %s on %s = %.2f" % (name, fg, bg, r))
+if bad:
+    print("\n".join(bad))
+    raise SystemExit(1)
+print("all palette text pairs clear 4.5:1")
+EOF
+ok "palette contrast"
+
 echo "== personal data =="
 if grep -rn --exclude-dir=__pycache__ -iE "([0-9a-f]{2}:){5}[0-9a-f]{2}|/(home|Users)/[^/[:space:]]+|(10|192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.[0-9]{1,3}\.[0-9]{1,3}" \
     "$PKGDIR/bin" "$PKGDIR/desktop" "$PKGDIR/servicemenu" "$PKGDIR/README.md" "$PKGDIR/install.sh" "$PKGDIR/src" 2>/dev/null \

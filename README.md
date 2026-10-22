@@ -2,7 +2,7 @@
 
 command-line helper. sends files or links to android. picks kde connect first, then usb/adb, then a temporary wifi page. can receive files back from your phone. no phone app needed. override with `--via`.
 
-there's also a window: `maidshare-gui` (optional, needs `python3-pyqt6`) does both directions — files, backend pick, and the receive QR — without touching a terminal.
+there's also a window: `maidshare-gui` (optional, needs `python3-pyqt6`) does both directions (files, backend pick, and the receive QR) without touching a terminal.
 
 ## quick start
 
@@ -88,7 +88,7 @@ setup shortcuts: pin one phone with
 
 ### the window
 
-`maidshare-gui` wraps the same CLI — same backends, same files land in
+`maidshare-gui` wraps the same CLI: same backends, same files land in
 the same place. the **send** tab keeps a list (drag files or links in),
 picks a backend or forces one, and streams the CLI's output as it runs.
 the **receive** tab starts the listen, draws the QR, shows the token URL
