@@ -1,5 +1,15 @@
 # changelog
 
+## TLS key born private
+
+- the per-run cert generator (maid_cert in bin/maid-cert.sh) wrote
+  key.pem under the inherited umask and chmod'ed it back to 0600
+  afterwards - a short world-readable window existed on every receive
+  start. openssl now runs inside `umask 077` (same rule as the maid bt
+  intent token: never 644, even briefly), and an empty key fails loud.
+- same on-disk behavior otherwise: throwaway cert, 1 day, printed
+  fingerprint unchanged.
+
 ## the window (maidshare-gui)
 
 - new optional Qt window around the existing CLI: a **send** tab (drag
