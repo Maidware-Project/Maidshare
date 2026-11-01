@@ -11,9 +11,14 @@ maid_cert() {
   local dir="$1" fp
   [ -n "$dir" ] || return 1
   command -v openssl >/dev/null 2>&1 || return 1
-  openssl req -x509 -newkey rsa:2048 -keyout "$dir/key.pem" \
-    -out "$dir/cert.pem" -days 1 -nodes -subj "/CN=MaidShare" \
-    2>/dev/null || return 1
+  # umask 077 for the write itself: the key must never briefly exist
+  # world-readable and get chmod'ed back (same rule as the bt-intent
+  # token: never 644, even for a moment)
+  ( umask 077
+    openssl req -x509 -newkey rsa:2048 -keyout "$dir/key.pem" \
+      -out "$dir/cert.pem" -days 1 -nodes -subj "/CN=MaidShare" \
+      2>/dev/null ) || return 1
+  [ -s "$dir/key.pem" ] || return 1
   chmod 600 "$dir/key.pem" 2>/dev/null || true
   fp=$(openssl x509 -noout -fingerprint -sha256 \
     -in "$dir/cert.pem" 2>/dev/null) || return 1
