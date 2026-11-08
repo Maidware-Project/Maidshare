@@ -145,14 +145,18 @@ bash install.sh --uninstall --purge    # everything out including those, no ques
 
 ## NixOS (flakes & home-manager)
 
-a `flake.nix` is provided:
+```nix
+# flake.nix (your config)
+inputs.maidshare.url = "github:Maidware-Project/Maidshare"; # tracks main
 
-```sh
-nix run github:Maidware-Project/Maidshare        # tui/cli
-nix run github:Maidware-Project/Maidshare#gui    # gui (if available in your build)
+# home-manager
+imports = [ inputs.maidshare.homeManagerModules.default ];
+programs.maidshare.enable = true;
 ```
 
-home-manager: enable `programs.maidshare.enable = true;` via the flake’s `homeManagerModules.default`. backends (kde connect, adb, qr tools) are common runtime deps - install/enable them in your NixOS/home-manager config as needed.
+**auto-update on every rebuild/switch:** track `main` and rebuild with refresh: `nix flake update maidshare && home-manager switch --flake .#<user>` (or `sudo nixos-rebuild switch --flake .#<host> --refresh`).
+
+quick try: `nix run github:Maidware-Project/Maidshare` (or `#gui`). backends (kde connect, adb, qr tools) are runtime deps - install/enable them in your NixOS/home-manager config as needed.
 
 ## works with the Maid suite
 
