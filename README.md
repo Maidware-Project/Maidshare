@@ -1,6 +1,6 @@
 # Maidshare - send files and links from linux to android
 
-a command-line helper that sends files or links to Android and can receive files back from your phone. picks KDE Connect first, then USB/ADB, then a temporary wifi page. no phone app needed. override with `--via`. `maidshare-gui` (optional, needs `python3-pyqt6`) does both directions in a window.
+send files or links to Android and receive files back from your phone. `maidshare` runs as an interactive **TUI** by default (arrow keys + number, send/receive/update/uninstall); CLI args still work for scripting (`maidshare file`, `--receive`, `--via`). **Maidshare GUI** (`maidshare-gui`, optional, needs `python3-pyqt6`) does both directions in a window. picks KDE Connect first, then USB/ADB, then a temporary wifi page. no phone app needed.
 
 ```
 bin/maidshare         dispatcher: picker, backend select, multi-file fan-out
