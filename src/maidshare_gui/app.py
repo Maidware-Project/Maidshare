@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
         self.recv_url = None
         self.recv_fp = None
 
-        self.setWindowTitle("MaidShare")
+        self.setWindowTitle("Maidshare GUI")
         self.resize(600, 560)
         self.statusBar().showMessage("ready - send uses the same CLI as the "
                                      "right-click menu")

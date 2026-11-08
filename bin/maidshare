@@ -14,19 +14,19 @@ usage() {
   echo "       maidshare --receive [--time MIN]" >&2
 }
 
-VIA=""
-if [ "${1:-}" = "--via" ]; then
-  VIA="${2:-}"; [ -n "$VIA" ] || { usage; exit 2; }
-  shift 2
-fi
-if [ "${1:-}" = "--device" ]; then
-  MAID_DEVICE="${2:-}"; [ -n "$MAID_DEVICE" ] || { usage; exit 2; }
-  shift 2; export MAID_DEVICE
-fi
-if [ "${1:-}" = "--adb" ]; then
-  MAID_ADB="${2:-}"; [ -n "$MAID_ADB" ] || { usage; exit 2; }
-  shift 2; export MAID_ADB
-fi
+VIA=""; NO_TUI=0; WANT_GUI=0
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --via) VIA="${2:-}"; [ -n "$VIA" ] || { usage; exit 2; }; shift 2 ;;
+    --device) MAID_DEVICE="${2:-}"; [ -n "$MAID_DEVICE" ] || { usage; exit 2; }; shift 2; export MAID_DEVICE ;;
+    --adb) MAID_ADB="${2:-}"; [ -n "$MAID_ADB" ] || { usage; exit 2; }; shift 2; export MAID_ADB ;;
+    --no-tui|--cli) NO_TUI=1; shift ;;
+    --gui) WANT_GUI=1; shift ;;
+    --help|-h) usage; exit 0 ;;
+    --receive|*) break ;;
+  esac
+done
+[ "$WANT_GUI" = "1" ] && { exec "$BINDIR/maidshare-gui" "$@"; }
 
 popup() {
   if command -v kdialog >/dev/null 2>&1; then
@@ -102,6 +102,89 @@ do_receive() {
 }
 
 if [ "${1:-}" = "--receive" ]; then shift; do_receive "$@"; exit $?; fi
+
+# --- Maidshare TUI (arrow + number, consistent style) ---
+_ms_tty_restore() { stty "${_MS_TTY:-}" 2>/dev/null </dev/tty || true; printf '\033[?25h'; }
+maidshare_boot() {
+  [ -t 0 ] && [ -t 1 ] || return 0
+  case "${TERM:-}" in ""|dumb|linux) return 0 ;; esac
+  [ -z "${NO_COLOR:-}" ] || return 0
+  [ "${MAID_FAST:-0}" = "1" ] && return 0
+  local sz r c; sz="$(stty size 2>/dev/null </dev/tty)" || sz="24 80"; r="${sz%% *}"; c="${sz##* }"
+  [ "${r:-0}" -ge 8 ] && [ "${c:-0}" -ge 34 ] || return 0
+  local -a letters=(M A I D W A R E) rots=('|' '╱' '─' '╲') pal=("\033[94m" "\033[96m" "\033[92m" "\033[93m" "\033[95m")
+  local n=${#letters[@]} slot=3 pad=$(((c-n*slot)/2)); [ "$pad" -ge 0 ] || pad=0
+  local -a reveal=(); local i; for ((i=0;i<n;i++)); do reveal[i]=$((2+i)); done
+  local total=$((reveal[n-1]+2)) wordrow=$((r/2-2)) f col glyph startcol
+  printf '\033[?25l\033[0m'; trap 'printf "\033[?25h\033[0m"' INT TERM
+  for ((f=0; f<total; f++)); do
+    printf '\033[%d;1H\033[2K' "$wordrow"
+    for ((i=0;i<n;i++)); do col=$((pad+i*slot+1))
+      if [ "$f" -ge "${reveal[i]}" ]; then glyph="${pal[$(((f+n-i)%${#pal[@]}))]}"; printf '\033[%d;%dH%s%s\033[0m' "$wordrow" "$col" "$glyph" "${letters[i]}"
+      elif [ "$f" -lt $((reveal[i]-2)) ]; then [ "$f" -gt 0 ] && printf '\033[%d;%dH\033[2m%s\033[0m' "$wordrow" "$col" "${rots[$(((f+i)%${#rots[@]}))]}"
+      else startcol=1; [ $((i%2)) -eq 0 ] || startcol=$c; [ "$f" -eq $((reveal[i]-2)) ] && col=$startcol || col=$(((col+startcol)/2)); glyph="${pal[$(((f+i)%${#pal[@]}))]}"; printf '\033[%d;%dH%s%s\033[0m' "$wordrow" "$col" "$glyph" "${letters[i]}"; fi
+    done
+    local k=""; read -t 0.08 -n 1 -s k 2>/dev/null || true
+    [ -n "${k:-}" ] && [ "$k" != $'\004' ] && [ "$k" != $'\000' ] && break
+  done
+  local word=""; for ((i=0;i<n;i++)); do word="$word ${letters[i]} "; done
+  printf '\033[%d;1H\033[2K%*s\033[1;97m%s\033[0m' "$wordrow" "$pad" '' "$word"
+  printf '\033[%d;1H\033[2K%*s\033[2mMaidshare - send / receive with your phone\033[0m' "$((wordrow+1))" "$(((c-42)/2))" ''
+  sleep 0.45; trap - INT TERM; printf '\033[?25h\033[0m\033[2J\033[H'
+}
+
+ms_run_suite_installer() { # args...
+  local url="https://raw.githubusercontent.com/Maidware-Project/Maidshare/main/install.sh"
+  echo "==> Maidshare installer (official): $url"
+  command -v curl >/dev/null 2>&1 || { echo "!! curl not found" >&2; return 1; }
+  local tmp; tmp="$(mktemp /tmp/maidshare-inst.XXXXXX.sh)" || return 1
+  if curl -fsSL "$url" -o "$tmp"; then bash "$tmp" "$@"; local rc=$?; rm -f "$tmp"; return "$rc"
+  else echo "!! fetch failed" >&2; rm -f "$tmp"; return 1; fi
+}
+
+maidshare_tui() {
+  maidshare_boot
+  local -a labels=("Send file(s) to phone (picker)" "Receive from phone (QR/browser)" "Open Maidshare GUI" "Update from GitHub (latest)" "Reinstall" "Uninstall" "Quit")
+  local n=${#labels[@]} cur=1 typed="" k seq i B=$'\e[1m' D=$'\e[2m' R=$'\e[0m' CY=$'\e[96m'
+  while :; do
+    printf '\033[H\033[2J%bMaidshare%b %b(send / receive — TUI)%b\n' "$B" "$R" "$D" "$R"
+    printf '%*s\n' "${COLUMNS:-80}" '' | tr ' ' '-'
+    printf '  %b↑↓/arrows or number · Enter select · q quit%b\n\n' "$D" "$R"
+    if [ ! -t 0 ] || [ ! -t 1 ]; then printf '  > '; read -r cur || cur=7; [ "$cur" = "q" ] && cur=7; fi
+    if [ -t 0 ] && [ -t 1 ]; then
+      _MS_TTY=$(stty -g 2>/dev/null </dev/tty || true); trap '_ms_tty_restore' INT TERM
+      stty -echo -icanon min 1 time 0 2>/dev/null </dev/tty || true; printf '\033[?25l\n\033[s'
+      while :; do
+        printf '\033[u\033[J'; i=1
+        for it in "${labels[@]}"; do
+          if [ "$i" -eq "$cur" ]; then printf '  %b❯ %s%b\033[K\n' "$CY$B" "$it" "$R"; else printf '    %b%s%b\033[K\n' "$D" "$it" "$R"; fi
+          i=$((i+1))
+        done
+        printf '  %b>%b %s\033[K' "$B" "$R" "$typed"
+        IFS= read -rsn1 k </dev/tty 2>/dev/null || k=""
+        case "$k" in
+          $'\x1b') IFS= read -rsn2 -t 0.08 seq </dev/tty 2>/dev/null || seq=""; case "$seq" in '[A'|'OA') [ "$cur" -gt 1 ] && cur=$((cur-1)); typed="" ;; '[B'|'OB') [ "$cur" -lt "$n" ] && cur=$((cur+1)); typed="" ;; esac ;;
+          ""|$'\n'|$'\r') if [[ "${typed:-}" =~ ^[0-9]+$ ]] && [ "$typed" -ge 1 ] && [ "$typed" -le "$n" ]; then cur="$typed"; fi; _ms_tty_restore; trap - INT TERM; printf '\n'; break ;;
+          q|Q) _ms_tty_restore; trap - INT TERM; printf '\n'; cur=7; break ;;
+          [1-7]) typed="$k"; cur="$k" ;;
+          $'\x7f'|$'\b') typed="" ;;
+        esac
+      done
+    fi
+    case "$cur" in
+      1) picked="$(pick_file 2>/dev/null)" || picked=""; if [ -n "$picked" ]; then echo; "$0" --no-tui "$picked" || true; fi; printf '\n[Enter] menu '; read -r _ || true ;;
+      2) echo; do_receive || true; printf '\n[Enter] menu '; read -r _ || true ;;
+      3) echo; if command -v maidshare-gui >/dev/null 2>&1 || [ -x "$BINDIR/maidshare-gui" ]; then (maidshare-gui >/dev/null 2>&1 &); echo "Launched Maidshare GUI."; else echo "Maidshare GUI not found (install PyQt6 + reinstall Maidshare)."; fi; printf '\n[Enter] menu '; read -r _ || true ;;
+      4) echo; ms_run_suite_installer || true; printf '\n[Enter] menu '; read -r _ || true ;;
+      5) echo; ms_run_suite_installer || true; printf '\n[Enter] menu '; read -r _ || true ;;
+      6) echo; printf 'Uninstall Maidshare? [y/N]: '; read -r _u || _u=""; case "${_u}" in y|Y*) ms_run_suite_installer --uninstall || true ;; *) echo "cancelled";; esac; printf '\n[Enter] menu '; read -r _ || true ;;
+      7|q) echo "bye!"; exit 0 ;;
+    esac
+    cur=1; typed=""
+  done
+}
+
+if [ $# -eq 0 ] && [ "$NO_TUI" != "1" ] && [ -t 0 ] && [ -t 1 ]; then maidshare_tui; exit $?; fi
 
 pick_file() {
   if command -v kdialog >/dev/null 2>&1; then

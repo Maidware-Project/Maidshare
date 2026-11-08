@@ -1,9 +1,9 @@
 [Desktop Entry]
-Name=MaidShare
-Comment=Send files and links to your Android phone
+Name=Maidshare
+Comment=Send files and links to your Android phone (TUI)
 Exec=@HOME@/.local/bin/maidshare
 Icon=kdeconnect
-Terminal=false
+Terminal=true
 Type=Application
 Categories=Network;FileTransfer;
-Keywords=share;phone;android;kdeconnect;
+Keywords=share;phone;android;kdeconnect;tui;
