@@ -106,12 +106,13 @@ if [ "${1:-}" = "--receive" ]; then shift; do_receive "$@"; exit $?; fi
 # --- Maidshare TUI (arrow + number, consistent style) ---
 _ms_tty_restore() { stty "${_MS_TTY:-}" 2>/dev/null </dev/tty || true; printf '\033[?25h'; }
 maidshare_boot() {
-  [ -t 0 ] && [ -t 1 ] || return 0
-  case "${TERM:-}" in ""|dumb|linux) return 0 ;; esac
+  [ -t 1 ] || return 0
+  case "${TERM:-}" in ""|linux) return 0 ;; esac
   [ -z "${NO_COLOR:-}" ] || return 0
   [ "${MAID_FAST:-0}" = "1" ] && return 0
-  local sz r c; sz="$(stty size 2>/dev/null </dev/tty)" || sz="24 80"; r="${sz%% *}"; c="${sz##* }"
-  [ "${r:-0}" -ge 8 ] && [ "${c:-0}" -ge 34 ] || return 0
+  local sz r c; sz="$(stty size 2>/dev/null </dev/tty)" || sz="$(stty size 2>/dev/null)" || sz="24 80"; r="${sz%% *}"; c="${sz##* }"
+  [ "${r:-0}" -ge 1 ] 2>/dev/null || r=24; [ "${c:-0}" -ge 1 ] 2>/dev/null || c=80
+  [ "$r" -ge 8 ] || r=24; [ "$c" -ge 34 ] || c=80
   local -a letters=(M A I D W A R E) rots=('|' '╱' '─' '╲') pal=("\033[94m" "\033[96m" "\033[92m" "\033[93m" "\033[95m")
   local n=${#letters[@]} slot=3 pad=$(((c-n*slot)/2)); [ "$pad" -ge 0 ] || pad=0
   local -a reveal=(); local i; for ((i=0;i<n;i++)); do reveal[i]=$((2+i)); done
