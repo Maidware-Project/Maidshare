@@ -7,6 +7,9 @@ there's also a window: `maidshare-gui` (optional, needs `python3-pyqt6`) does bo
 ## quick start
 
 ```sh
+# one line, straight from GitHub:
+bash <(curl -fsSL https://raw.githubusercontent.com/Maidware-Project/Maidshare/main/install.sh)
+
 bash install.sh            # copy + icon, reports which backends work
 maidshare file.pdf         # picks KDE Connect, ADB, or wifi page for you
 maidshare --receive        # phone uploads to your PC via QR + browser
