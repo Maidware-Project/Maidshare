@@ -1,7 +1,9 @@
 # changelog
 
-## unreleased
+## Maidshare v1.0.0 (this release)
 
+- **NixOS (flakes + home-manager), easy setup:** `flake.nix` with packages/apps (`default`, `#gui`), `homeManagerModules.default`/`nixosModules.default`, and `programs.maidshare.enable`. track `main` and rebuild with `--refresh` to auto-update on every rebuild/switch.
+- **`maidshare` is an interactive TUI by default** (arrow keys + number: send/receive/open GUI/update/reinstall/uninstall). CLI args preserved (`file/url`, `--receive`, `--via`, `--device`, `--adb`, `--no-tui/--cli`, `--gui`). GUI named **Maidshare GUI** (`maidshare-gui`).
 - **relicensed to GPL-3.0-or-later** (forkable, open source). Third-party components retain their own licenses.
 
 ## TLS key born private
