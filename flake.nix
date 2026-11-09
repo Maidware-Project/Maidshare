@@ -37,6 +37,9 @@
               fi
               [ -d desktop ] && cp -a desktop/*.desktop $out/share/applications/ 2>/dev/null || true
               [ -d servicemenu ] && mkdir -p $out/share/kio/servicemenus && cp -a servicemenu/* $out/share/kio/servicemenus/ 2>/dev/null || true
+              find $out/share/applications $out/share/kio/servicemenus -name '*.desktop' -type f 2>/dev/null | while IFS= read -r f; do
+                sed -i "s|@HOME@/.local/bin/||g; s|@HOME@|$HOME|g" "$f"
+              done
               cp -a README.md LICENSE THIRD-PARTY-NOTICES.md $out/share/maidshare/ 2>/dev/null || true
               runHook postInstall
             '';
