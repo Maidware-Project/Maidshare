@@ -15,13 +15,14 @@
           runtimePath = pkgs.lib.makeBinPath [
             pkgs.bash pkgs.coreutils pkgs.curl pkgs.openssl py
             pkgs.kdePackages.kdeconnect-kde pkgs.android-tools pkgs.qrencode
-            pkgs.kdialog pkgs.zenity
+            pkgs.kdePackages.kdialog pkgs.zenity
           ];
           maidshare = pkgs.stdenv.mkDerivation {
             pname = "maidshare";
             version = "0.1.0";
             src = self;
             nativeBuildInputs = [ pkgs.makeWrapper pkgs.qt6.wrapQtAppsHook ];
+            buildInputs = [ pkgs.qt6.qtbase ];
             dontBuild = true;
             installPhase = ''
               runHook preInstall
@@ -56,10 +57,11 @@
       homeManagerModules.default = { config, lib, pkgs, ... }: {
         options.programs.maidshare = {
           enable = lib.mkEnableOption "Maidshare (Maidware)";
-          package = lib.mkOption { type = lib.types.package; default = self.packages.${pkgs.system}.default; };
+          package = lib.mkOption { type = lib.types.package; default = self.packages.${pkgs.stdenv.hostPlatform.system}.default; };
         };
         config = lib.mkIf config.programs.maidshare.enable { home.packages = [ config.programs.maidshare.package ]; };
       };
+      homeModules = self.homeManagerModules;
       nixosModules.default = { lib, ... }: { options.programs.maidshare.enableNote = lib.mkEnableOption "Maidshare (use home-manager module)"; };
     };
 }
