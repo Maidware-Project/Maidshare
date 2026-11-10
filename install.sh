@@ -14,7 +14,14 @@ if [ ! -f "$PKGDIR/install.sh" ]; then
   # tarball and continue from there.
   FETCH_TMP="$(mktemp -d /tmp/maidshare-fetch.XXXXXX)"
   trap 'rm -rf "$FETCH_TMP"' INT TERM
-  curl -fsSL "https://github.com/Maidware-Project/Maidshare/archive/refs/heads/main.tar.gz" -o "$FETCH_TMP/repo.tgz" \
+  REPO="Maidware-Project/Maidshare"
+  LATEST_TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  if [ -n "$LATEST_TAG" ]; then
+    TARBALL_URL="https://github.com/$REPO/archive/refs/tags/$LATEST_TAG.tar.gz"
+  else
+    TARBALL_URL="https://github.com/$REPO/archive/refs/heads/main.tar.gz"
+  fi
+  curl -fsSL "$TARBALL_URL" -o "$FETCH_TMP/repo.tgz" \
     || { echo "could not download the Maidshare package tree" >&2; exit 1; }
   tar -xzf "$FETCH_TMP/repo.tgz" -C "$FETCH_TMP" || exit 1
   PKGDIR="$(find "$FETCH_TMP" -mindepth 1 -maxdepth 1 -type d -name 'Maidshare-*' | head -n 1)"

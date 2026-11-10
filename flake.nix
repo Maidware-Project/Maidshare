@@ -19,7 +19,7 @@
           ];
           maidshare = pkgs.stdenv.mkDerivation {
             pname = "maidshare";
-            version = "0.1.0";
+            version = "1.0.1";
             src = self;
             nativeBuildInputs = [ pkgs.makeWrapper pkgs.qt6.wrapQtAppsHook ];
             buildInputs = [ pkgs.qt6.qtbase ];

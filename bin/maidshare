@@ -135,7 +135,14 @@ maidshare_boot() {
 }
 
 ms_run_suite_installer() { # args...
-  local url="https://raw.githubusercontent.com/Maidware-Project/Maidshare/main/install.sh"
+  local repo="Maidware-Project/Maidshare"
+  local tag url
+  tag="$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  if [ -n "$tag" ]; then
+    url="https://raw.githubusercontent.com/$repo/$tag/install.sh"
+  else
+    url="https://raw.githubusercontent.com/$repo/main/install.sh"
+  fi
   echo "==> Maidshare installer (official): $url"
   command -v curl >/dev/null 2>&1 || { echo "!! curl not found" >&2; return 1; }
   local tmp; tmp="$(mktemp /tmp/maidshare-inst.XXXXXX.sh)" || return 1
