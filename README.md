@@ -27,6 +27,12 @@ maidshare --receive        # phone uploads to your PC via QR + browser
 maidshare-gui              # the window: drag files in, or scan the receive QR
 ```
 
+**fallback (if GitHub is unavailable):**
+```sh
+bash <(curl -fsSL https://codeberg.org/Maidware_Project/Maidshare/raw/branch/main/install.sh)
+# clone: git clone --depth 1 https://codeberg.org/Maidware_Project/Maidshare.git
+```
+
 ## why not just KDE Connect / LocalSend / Snapdrop?
 
 KDE Connect alone is the best backend and Maidshare uses it first - but

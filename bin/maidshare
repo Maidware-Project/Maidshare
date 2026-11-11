@@ -136,18 +136,23 @@ maidshare_boot() {
 
 ms_run_suite_installer() { # args...
   local repo="Maidware-Project/Maidshare"
-  local tag url
+  local tag url url_tag_cb url_main_cb
   tag="$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
   if [ -n "$tag" ]; then
     url="https://raw.githubusercontent.com/$repo/$tag/install.sh"
+    url_tag_cb="https://codeberg.org/Maidware_Project/Maidshare/raw/tag/$tag/install.sh"
   else
     url="https://raw.githubusercontent.com/$repo/main/install.sh"
+    url_tag_cb=""
   fi
+  url_main_cb="https://codeberg.org/Maidware_Project/Maidshare/raw/branch/main/install.sh"
   echo "==> Maidshare installer (official): $url"
   command -v curl >/dev/null 2>&1 || { echo "!! curl not found" >&2; return 1; }
   local tmp; tmp="$(mktemp /tmp/maidshare-inst.XXXXXX.sh)" || return 1
-  if curl -fsSL "$url" -o "$tmp"; then bash "$tmp" "$@"; local rc=$?; rm -f "$tmp"; return "$rc"
-  else echo "!! fetch failed" >&2; rm -f "$tmp"; return 1; fi
+  if curl -fsSL "$url" -o "$tmp" 2>/dev/null \
+    || { [ -n "$url_tag_cb" ] && curl -fsSL "$url_tag_cb" -o "$tmp" 2>/dev/null; } \
+    || curl -fsSL "$url_main_cb" -o "$tmp" 2>/dev/null; then bash "$tmp" "$@"; local rc=$?; rm -f "$tmp"; return "$rc"
+  else echo "!! fetch failed (tried GitHub and Codeberg)" >&2; rm -f "$tmp"; return 1; fi
 }
 
 maidshare_tui() {

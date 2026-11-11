@@ -16,16 +16,22 @@ if [ ! -f "$PKGDIR/install.sh" ]; then
   trap 'rm -rf "$FETCH_TMP"' INT TERM
   REPO="Maidware-Project/Maidshare"
   LATEST_TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  _fetched=0
+  _urls=()
   if [ -n "$LATEST_TAG" ]; then
-    TARBALL_URL="https://github.com/$REPO/archive/refs/tags/$LATEST_TAG.tar.gz"
-  else
-    TARBALL_URL="https://github.com/$REPO/archive/refs/heads/main.tar.gz"
+    _urls+=("https://github.com/$REPO/archive/refs/tags/$LATEST_TAG.tar.gz")
+    _urls+=("https://codeberg.org/Maidware_Project/Maidshare/archive/${LATEST_TAG}.tar.gz")
   fi
-  curl -fsSL "$TARBALL_URL" -o "$FETCH_TMP/repo.tgz" \
-    || { echo "could not download the Maidshare package tree" >&2; exit 1; }
-  tar -xzf "$FETCH_TMP/repo.tgz" -C "$FETCH_TMP" || exit 1
-  PKGDIR="$(find "$FETCH_TMP" -mindepth 1 -maxdepth 1 -type d -name 'Maidshare-*' | head -n 1)"
-  [ -f "$PKGDIR/install.sh" ] || { echo "downloaded tree looks wrong" >&2; exit 1; }
+  _urls+=("https://github.com/$REPO/archive/refs/heads/main.tar.gz")
+  _urls+=("https://codeberg.org/Maidware_Project/Maidshare/archive/main.tar.gz")
+  for _url in "${_urls[@]}"; do
+    if curl -fsSL "$_url" -o "$FETCH_TMP/repo.tgz" 2>/dev/null && tar -xzf "$FETCH_TMP/repo.tgz" -C "$FETCH_TMP" 2>/dev/null; then
+      PKGDIR="$(find "$FETCH_TMP" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+      [ -f "$PKGDIR/install.sh" ] && { _fetched=1; break; }
+    fi
+    rm -rf "$FETCH_TMP"/* 2>/dev/null || true
+  done
+  [ "$_fetched" = "1" ] || { echo "could not download the Maidshare package tree (tried GitHub and Codeberg)" >&2; exit 1; }
 fi
 BACKUP_TS="$(date +%Y%m%d-%H%M%S)"
 CHECK=0; UNINST=0; PURGE=0; NOCONFIG=0; PREFIX=""
