@@ -19,7 +19,7 @@
           ];
           maidshare = pkgs.stdenv.mkDerivation {
             pname = "maidshare";
-            version = "1.0.1";
+            version = "1.0.3";
             src = self;
             nativeBuildInputs = [ pkgs.makeWrapper pkgs.qt6.wrapQtAppsHook ];
             buildInputs = [ pkgs.qt6.qtbase ];
@@ -55,6 +55,23 @@
         gui = { type = "app"; program = "${self.packages.${system}.default}/bin/maidshare-gui"; };
       });
       checks = forAllSystems (system: { package = self.packages.${system}.default; });
+
+      devShells = forAllSystems (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          default = pkgs.mkShell {
+            packages = with pkgs; [
+              bash coreutils curl openssl python3
+              kdePackages.kdeconnect-kde android-tools qrencode
+              kdePackages.kdialog zenity shellcheck nixfmt-rfc-style
+            ];
+            shellHook = ''
+              echo "Maidshare dev shell (nix develop)"
+            '';
+          };
+        });
+
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
       # easy: imports = [ inputs.maidshare.homeManagerModules.default ]; programs.maidshare.enable = true;
       homeManagerModules.default = { config, lib, pkgs, ... }: {

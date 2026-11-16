@@ -1,5 +1,9 @@
 # changelog
 
+## Maidshare v1.0.3
+
+- **Nix:** add `shell.nix`, `devShells`, and `formatter` outputs; update `flake.lock` and package metadata for better native Nix/NixOS development and usage.
+
 ## Maidshare v1.0.1 (this release)
 
 - Installers: fetch package/updates from the latest GitHub release (fallback to main if unavailable).
