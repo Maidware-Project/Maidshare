@@ -390,15 +390,24 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(first[:120])
 
     def show_qr(self, url):
-        tmp = os.path.join("/tmp", "maidshare-gui-qr-%d.png" % os.getpid())
-        if make_qr_png(url, tmp):
-            pix = QPixmap(tmp)
-            self.qr.setPixmap(pix.scaled(
-                220, 220, Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.FastTransformation))
-            os.unlink(tmp)
-        else:
-            self.qr.setText("(qrencode missing - type the URL instead)")
+        tmp = None
+        try:
+            import tempfile
+            fd, tmp = tempfile.mkstemp(prefix="maidshare-gui-qr-", suffix=".png")
+            os.close(fd)
+            if make_qr_png(url, tmp):
+                pix = QPixmap(tmp)
+                self.qr.setPixmap(pix.scaled(
+                    220, 220, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.FastTransformation))
+            else:
+                self.qr.setText("(qrencode missing - type the URL instead)")
+        finally:
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
 
     def copy_url(self):
         if self.recv_url:

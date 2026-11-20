@@ -24,7 +24,10 @@ if len(sys.argv) < 7:
     sys.exit(2)
 PORT = int(sys.argv[1])
 OUTDIR = sys.argv[2]
-TOKEN = sys.argv[3]
+TOKEN = os.environ.get("MAID_RECEIVE_TOKEN") or sys.argv[3]
+if TOKEN == "-":
+    print("missing receive token", file=sys.stderr)
+    sys.exit(2)
 MINUTES = int(sys.argv[4])
 CERT = sys.argv[5]
 KEY = sys.argv[6]

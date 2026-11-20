@@ -80,6 +80,13 @@ srv.serve_forever()
 PY
   server_pid=$!
   trap 'kill "$server_pid" 2>/dev/null; rm -rf "$dir" "$certdir"' EXIT INT TERM
+  sleep 0.2
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    rm -rf "$dir" "$certdir"
+    trap - EXIT INT TERM
+    sorry "Failed to start HTTP share server (port $PORT in use or TLS/startup error)."
+    return 1
+  fi
 
   if command -v qrencode >/dev/null 2>&1; then
     qrencode -t ANSIUTF8 "$first_url" 2>/dev/null || true

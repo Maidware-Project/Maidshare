@@ -17,7 +17,12 @@ usage() {
 VIA=""; NO_TUI=0; WANT_GUI=0
 while [ $# -gt 0 ]; do
   case "${1:-}" in
-    --via) VIA="${2:-}"; [ -n "$VIA" ] || { usage; exit 2; }; shift 2 ;;
+    --via)
+      VIA="${2:-}"
+      [ -n "$VIA" ] || { usage; exit 2; }
+      case "$VIA" in kdeconnect|adb|http) ;; *) echo "invalid backend: $VIA" >&2; exit 2 ;; esac
+      shift 2
+      ;;
     --device) MAID_DEVICE="${2:-}"; [ -n "$MAID_DEVICE" ] || { usage; exit 2; }; shift 2; export MAID_DEVICE ;;
     --adb) MAID_ADB="${2:-}"; [ -n "$MAID_ADB" ] || { usage; exit 2; }; shift 2; export MAID_ADB ;;
     --no-tui|--cli) NO_TUI=1; shift ;;
@@ -87,7 +92,7 @@ do_receive() {
   echo "cert fingerprint (compare with the browser warning): $fp"
   before=$(ls -A "$outdir" 2>/dev/null | sort | md5sum | awk '{print $1}')
   rc=0
-  python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "$token" "$mins" "$certdir/cert.pem" "$certdir/key.pem" || rc=$?
+  MAID_RECEIVE_TOKEN="$token" python3 "$BINDIR/maidshare-receive.py" "$port" "$outdir" "-" "$mins" "$certdir/cert.pem" "$certdir/key.pem" || rc=$?
   rm -rf "$certdir"
   trap - EXIT INT TERM
   # 128+ is a signalled stop (Ctrl-C), not a server failure
